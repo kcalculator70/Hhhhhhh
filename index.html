@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Real Proof Maker</title>
+    <title>Real Proof Maker (Strict)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.js"></script>
     <style>
         :root {
@@ -35,7 +35,6 @@
 
         h2 { text-align: center; color: var(--text-color); margin-bottom: 20px; }
 
-        /* Neumorphic Button Style */
         .neu-btn {
             width: 100%; padding: 15px; border: none; border-radius: 12px;
             background: var(--bg-color);
@@ -57,7 +56,7 @@
         }
         
         input[type="file"] { display: none; }
-
+        
         #preview {
             width: 150px; height: 150px; object-fit: contain; border-radius: 10px;
             margin-top: 15px; display: none;
@@ -66,7 +65,6 @@
             margin-left: auto; margin-right: auto;
         }
 
-        /* Location Status Box */
         .status-box {
             padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; font-weight: bold;
             display: none;
@@ -74,36 +72,36 @@
         .status-error { color: var(--danger); box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light); }
         .status-ok { color: var(--success); box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); }
 
-        /* Modal for Location Error */
         .modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(224, 229, 236, 0.9); z-index: 100;
+            background: rgba(224, 229, 236, 0.95); z-index: 100;
             display: none; justify-content: center; align-items: center;
         }
         .modal-box {
-            background: var(--bg-color); padding: 30px; border-radius: 20px;
+            background: var(--bg-color); padding: 25px; border-radius: 20px;
             box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light);
-            text-align: center; width: 80%;
+            text-align: center; width: 85%;
         }
     </style>
 </head>
 <body>
 
     <div class="mobile-container">
-        <h2>📍 Proof Maker</h2>
+        <h2>📍 Proof Maker <span style="font-size:12px; color:green">(Auto)</span></h2>
 
         <div class="modal-overlay" id="locationModal">
             <div class="modal-box">
                 <h3 style="color:var(--danger)">⚠️ লোকেশন অফ!</h3>
-                <p>আম্মুকে লোকেশন দেখাতে হলে অবশ্যই GPS চালু করতে হবে।</p>
-                <button class="neu-btn" onclick="checkLocation()">🔄 আবার চেক করুন</button>
+                <p>এই অ্যাপে লোকেশন ম্যানুয়ালি সেট করার কোনো সুযোগ নেই।</p>
+                <p style="font-size:13px; color:#666;">দয়া করে মোবাইলের GPS অন করুন।</p>
+                <button class="neu-btn" onclick="checkLocation()" style="color:var(--accent)">🔄 আবার চেষ্টা করুন</button>
             </div>
         </div>
 
         <div class="upload-area">
             <input type="file" id="fileInput" accept="image/jpeg, image/jpg, image/png">
             <button class="neu-btn btn-select" onclick="document.getElementById('fileInput').click()">
-                📂 স্ক্রিনশট সিলেক্ট করুন
+                📂 ছবি সিলেক্ট করুন
             </button>
             <img id="preview" src="">
         </div>
@@ -114,7 +112,7 @@
             <button id="saveBtn" class="neu-btn btn-save" onclick="injectAndSave()" disabled>
                 💾 প্রুফ তৈরি করুন (Save)
             </button>
-            <p style="font-size:12px; color:#666;">*এই ছবিতে আপনার বর্তমান লোকেশন এবং সময় ঢুকে যাবে।</p>
+            <p style="font-size:11px; color:#666; margin-top:10px;">*আপনার বর্তমান অটোমেটিক লোকেশন ছবিতে সেভ হবে।</p>
         </div>
 
     </div>
@@ -124,7 +122,6 @@
         let userLat = null;
         let userLng = null;
 
-        // ১. শুরুতেই বাটন চাপলে লোকেশন চেক করবে
         document.getElementById('fileInput').addEventListener('change', function(e) {
             let file = e.target.files[0];
             if (file) {
@@ -138,14 +135,15 @@
                     document.querySelector('.btn-select').innerText = "🔄 অন্য ছবি নিন";
                     document.getElementById('actionButtons').style.display = 'block';
                     
-                    // ছবি নেওয়ার সাথে সাথেই লোকেশন চেক শুরু
+                    // রিসেট এবং চেক
+                    userLat = null; userLng = null;
                     checkLocation();
                 }
                 reader.readAsDataURL(file);
             }
         });
 
-        // ২. কড়া লোকেশন চেকার ফাংশন
+        // অটো লোকেশন চেকার (শুধুমাত্র GPS)
         function checkLocation() {
             let statusBox = document.getElementById('statusBox');
             let modal = document.getElementById('locationModal');
@@ -153,55 +151,50 @@
 
             statusBox.style.display = 'block';
             statusBox.className = 'status-box status-error';
-            statusBox.innerText = "⏳ লোকেশন খোঁজা হচ্ছে...";
+            statusBox.innerText = "⏳ স্যাটেলাইট লোকেশন খোঁজা হচ্ছে...";
+            modal.style.display = 'none';
 
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
-                    // সাকসেস হলে
                     function(position) {
+                        // সাকসেস
                         userLat = position.coords.latitude;
                         userLng = position.coords.longitude;
 
-                        // পপআপ বন্ধ, বাটন চালু
-                        modal.style.display = 'none';
-                        saveBtn.disabled = false;
-                        
+                        saveBtn.disabled = false; // বাটন অন
                         statusBox.className = 'status-box status-ok';
-                        statusBox.innerHTML = `✅ লোকেশন লক করা হয়েছে!<br><span style="font-size:10px">Lat: ${userLat.toFixed(4)}, Lng: ${userLng.toFixed(4)}</span>`;
+                        statusBox.innerHTML = `✅ জিপিএস কানেক্টেড!<br><span style="font-size:10px">Lat: ${userLat.toFixed(5)}, Lng: ${userLng.toFixed(5)}</span>`;
                     },
-                    // এরর হলে (যদি লোকেশন অফ থাকে বা পারমিশন না দেয়)
                     function(error) {
-                        modal.style.display = 'flex'; // পপআপ শো করবে
-                        saveBtn.disabled = true; // বাটন ডিজেবল
-                        statusBox.className = 'status-box status-error';
-                        statusBox.innerText = "❌ লোকেশন পাওয়া যায়নি!";
+                        // ফেইল করলে মডাল আসবে, কিন্তু ম্যানুয়াল বাটন নেই
+                        console.log("GPS Error: ", error);
+                        modal.style.display = 'flex';
+                        statusBox.innerText = "❌ জিপিএস কানেকশন নেই!";
+                        saveBtn.disabled = true; // বাটন অফ
                     },
-                    { enableHighAccuracy: true } // হাই একুরেসি মুড
+                    { enableHighAccuracy: true, timeout: 10000 }
                 );
             } else {
-                alert("আপনার ব্রাউজারে লোকেশন সাপোর্ট করছে না।");
+                alert("আপনার ডিভাইসে জিপিএস নেই!");
             }
         }
 
-        // ৩. মেটাডাটা ঢুকানো এবং সেভ করা (মেইন ম্যাজিক)
         function injectAndSave() {
             if (!currentImgData || !userLat) {
-                alert("লোকেশন ছাড়া সেভ করা যাবে না!");
-                checkLocation();
+                alert("লোকেশন পাওয়া যায়নি! সেভ করা অসম্ভব।");
                 return;
             }
 
-            // Piexif ডাটা রেডি করা
             let zeroth = {};
             let exif = {};
             let gps = {};
 
-            // ক. ডিভাইসের নাম (তোর ফোনের নাম)
+            // ডিভাইসের তথ্য (ফিক্সড)
             zeroth[piexif.ImageIFD.Make] = "Infinix";
             zeroth[piexif.ImageIFD.Model] = "Infinix X6827";
             zeroth[piexif.ImageIFD.Software] = "MediaTek Camera Application";
 
-            // খ. বর্তমান সময়
+            // রিয়েল টাইম
             let now = new Date();
             let timeStr = now.getFullYear() + ":" + (now.getMonth()+1).toString().padStart(2,'0') + ":" + now.getDate().toString().padStart(2,'0') + " " + 
                           now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0') + ":" + now.getSeconds().toString().padStart(2,'0');
@@ -210,27 +203,22 @@
             exif[piexif.ExifIFD.DateTimeOriginal] = timeStr;
             exif[piexif.ExifIFD.DateTimeDigitized] = timeStr;
 
-            // গ. জিপিএস ডাটা কনভার্ট করা (Piexif ফরম্যাটে)
+            // জিপিএস ডাটা
             gps[piexif.GPSIFD.GPSLatitudeRef] = userLat < 0 ? 'S' : 'N';
             gps[piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(Math.abs(userLat));
             gps[piexif.GPSIFD.GPSLongitudeRef] = userLng < 0 ? 'W' : 'E';
             gps[piexif.GPSIFD.GPSLongitude] = piexif.GPSHelper.degToDmsRational(Math.abs(userLng));
 
-            // ঘ. বাইনারি তৈরি করা
             let exifObj = {"0th": zeroth, "Exif": exif, "GPS": gps};
             let exifStr = piexif.dump(exifObj);
-
-            // ঙ. ইমেজে ইনজেক্ট করা
             let newImage = piexif.insert(exifStr, currentImgData);
 
-            // চ. ডাউনলোড করা (নামটা ক্যামেরার মতো দেওয়া হয়েছে)
             let link = document.createElement('a');
             link.href = newImage;
-            // এই নামের ফরম্যাট গ্যালারিতে সেভ হতে সাহায্য করে
             link.download = "IMG_" + now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0') + "_" + now.getHours() + now.getMinutes() + now.getSeconds() + ".jpg";
             link.click();
             
-            alert("🎉 প্রুফ তৈরি হয়েছে! গ্যালারির 'Downloads' ফোল্ডারে চেক করুন।");
+            alert("🎉 জিপিএস ভেরিফাইড প্রুফ তৈরি হয়েছে!");
         }
     </script>
 </body>
