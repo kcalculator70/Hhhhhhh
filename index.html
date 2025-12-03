@@ -109,9 +109,7 @@
         const adminStatus = document.getElementById('adminStatus');
         const statusIndicator = document.getElementById('statusIndicator');
 
-        // এই ID টা Sender App (ভাঙ্গা ফোন) এ ফিক্সড করে দেওয়া হয়েছে
         const MY_PEER_ID = 'ADMIN_KAWSAR'; 
-        const ADMIN_PEER_ID = 'ADMIN_KAWSAR'; 
         let dataConnection = null;
         let senderPeerId = null;
 
@@ -120,7 +118,19 @@
             host: 'peerjs.cloud', 
             port: 443, 
             secure: true,
-            config: {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
+            // *** শক্তিশালী STUN/TURN কনফিগারেশন - সংযোগ ফিক্স ***
+            config: {
+                'iceServers': [
+                    { 'urls': 'stun:stun.l.google.com:19302' },
+                    { 'urls': 'stun:stun1.l.google.com:19302' },
+                    { 'urls': 'stun:stun2.l.google.com:19302' },
+                    { 'urls': 'stun:stun3.l.google.com:19302' },
+                    { 'urls': 'stun:stun4.l.google.com:19302' },
+                    { 'urls': 'stun:stun.nextcloud.com:443' },
+                    { 'urls': 'stun:stun.services.mozilla.com' },
+                    { 'urls': 'stun:stun.stunprotocol.org' }
+                ]
+            }
         });
 
         peer.on('open', (id) => {
@@ -134,12 +144,10 @@
 
         // ২. Sender (CCTV ফোন) কল করলে এই ফাংশনটা চালু হবে
         peer.on('call', (call) => {
-            senderPeerId = call.peer; // Sender-এর আইডি ধরে রাখলাম
+            senderPeerId = call.peer; 
             
-            // ভিডিও কল রিসিভ করা
             call.answer(null); 
 
-            // যখন ভিডিও স্ট্রিম আসা শুরু করবে
             call.on('stream', (remoteStream) => {
                 remoteVideo.srcObject = remoteStream;
                 remoteVideo.play();
@@ -148,11 +156,9 @@
                 statusIndicator.classList.add('live');
                 adminStatus.innerHTML = `<span class="indicator live"></span> লাইভ ফিড চালু: CCTV সংযুক্ত।`;
                 
-                // কল গ্রহণ করার পর ডেটা চ্যানেল ওপেন করা
                 setupDataChannel(senderPeerId);
             });
             
-            // স্ট্রিম বন্ধ হলে বা কেটে গেলে
             call.on('close', () => {
                 statusIndicator.classList.remove('live');
                 statusIndicator.classList.add('error');
@@ -182,9 +188,23 @@
                 // Sender App-কে কমান্ড পাঠানো
                 dataConnection.send('SWITCH_CAM');
                 adminStatus.innerHTML = `<span class="indicator live"></span> কমান্ড পাঠানো হয়েছে: ক্যামেরা পাল্টানো হচ্ছে...`;
+            } else if (senderPeerId) {
+                // যদি কমান্ড চ্যানেল বন্ধ থাকে, আবার চালু করার চেষ্টা
+                adminStatus.innerHTML = `<span class="indicator error"></span> কমান্ড চ্যানেল বন্ধ, পুনরায় চেষ্টা করছে...`;
+                setupDataChannel(senderPeerId);
+                
+                // 1.5 সেকেন্ড অপেক্ষা করে আবার কমান্ড পাঠাও
+                setTimeout(function() {
+                    if (dataConnection && dataConnection.open) {
+                         dataConnection.send('SWITCH_CAM');
+                         adminStatus.innerHTML = `<span class="indicator live"></span> কমান্ড সফল! ক্যামেরা পাল্টানো হয়েছে।`;
+                    } else {
+                         adminStatus.innerHTML = `<span class="indicator error"></span> সংযোগ ব্যর্থ! CCTV ফোনটি চালু নেই।`;
+                    }
+                }, 1500); 
+
             } else {
-                alert("কমান্ড চ্যানেল সংযুক্ত নয়। CCTV ফোনটি চালু আছে কিনা নিশ্চিত করুন।");
-                setupDataChannel(senderPeerId); // আবার চেষ্টা করা
+                alert("CCTV ফোন থেকে এখনও কোনো সিগন্যাল পাওয়া যায়নি।");
             }
         }
 
