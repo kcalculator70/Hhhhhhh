@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Real Proof Maker (Strict)</title>
+    <title>Real Proof Maker (Smart)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.js"></script>
     <style>
         :root {
@@ -51,7 +51,7 @@
 
         .upload-area {
             text-align: center; padding: 20px; border-radius: 15px;
-            box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+            box-shadow: inset 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
             margin-bottom: 25px;
         }
         
@@ -112,7 +112,7 @@
             <button id="saveBtn" class="neu-btn btn-save" onclick="injectAndSave()" disabled>
                 💾 প্রুফ তৈরি করুন (Save)
             </button>
-            <p style="font-size:11px; color:#666; margin-top:10px;">*আপনার বর্তমান অটোমেটিক লোকেশন ছবিতে সেভ হবে।</p>
+            <p style="font-size:11px; color:#666; margin-top:10px;">*ডিভাইস নাম এবং লোকেশন অটোমেটিক সেভ হবে।</p>
         </div>
 
     </div>
@@ -135,7 +135,6 @@
                     document.querySelector('.btn-select').innerText = "🔄 অন্য ছবি নিন";
                     document.getElementById('actionButtons').style.display = 'block';
                     
-                    // রিসেট এবং চেক
                     userLat = null; userLng = null;
                     checkLocation();
                 }
@@ -143,7 +142,6 @@
             }
         });
 
-        // অটো লোকেশন চেকার (শুধুমাত্র GPS)
         function checkLocation() {
             let statusBox = document.getElementById('statusBox');
             let modal = document.getElementById('locationModal');
@@ -157,20 +155,18 @@
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     function(position) {
-                        // সাকসেস
                         userLat = position.coords.latitude;
                         userLng = position.coords.longitude;
 
-                        saveBtn.disabled = false; // বাটন অন
+                        saveBtn.disabled = false;
                         statusBox.className = 'status-box status-ok';
                         statusBox.innerHTML = `✅ জিপিএস কানেক্টেড!<br><span style="font-size:10px">Lat: ${userLat.toFixed(5)}, Lng: ${userLng.toFixed(5)}</span>`;
                     },
                     function(error) {
-                        // ফেইল করলে মডাল আসবে, কিন্তু ম্যানুয়াল বাটন নেই
                         console.log("GPS Error: ", error);
                         modal.style.display = 'flex';
                         statusBox.innerText = "❌ জিপিএস কানেকশন নেই!";
-                        saveBtn.disabled = true; // বাটন অফ
+                        saveBtn.disabled = true;
                     },
                     { enableHighAccuracy: true, timeout: 10000 }
                 );
@@ -189,12 +185,30 @@
             let exif = {};
             let gps = {};
 
-            // ডিভাইসের তথ্য (ফিক্সড)
-            zeroth[piexif.ImageIFD.Make] = "Infinix";
-            zeroth[piexif.ImageIFD.Model] = "Infinix X6827";
-            zeroth[piexif.ImageIFD.Software] = "MediaTek Camera Application";
+            // ------- এই পার্টটা নতুন (অটোমেটিক ডিভাইস ডিটেকশন) -------
+            let userAgent = navigator.userAgent;
+            let deviceName = "Unknown Mobile";
+            let deviceBrand = "Smartphone";
 
-            // রিয়েল টাইম
+            // খুব সিম্পল ডিটেকশন লজিক
+            if(userAgent.indexOf("Android") > -1) {
+                let match = userAgent.match(/Android.*?; (.*?)\)/);
+                if (match && match[1]) {
+                    deviceName = match[1];
+                    deviceBrand = deviceName.split(" ")[0]; // প্রথম শব্দটাকে ব্র্যান্ড ধরলাম
+                }
+            } else if (userAgent.indexOf("iPhone") > -1) {
+                deviceName = "iPhone";
+                deviceBrand = "Apple";
+            }
+
+            // ডিটেক্ট করা নামগুলো মেটাডাটাতে সেট করা হচ্ছে
+            zeroth[piexif.ImageIFD.Make] = deviceBrand;
+            zeroth[piexif.ImageIFD.Model] = deviceName;
+            zeroth[piexif.ImageIFD.Software] = "Smart Proof Maker v2.0";
+            // ----------------------------------------------------
+
+            // টাইমসেট
             let now = new Date();
             let timeStr = now.getFullYear() + ":" + (now.getMonth()+1).toString().padStart(2,'0') + ":" + now.getDate().toString().padStart(2,'0') + " " + 
                           now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0') + ":" + now.getSeconds().toString().padStart(2,'0');
@@ -203,7 +217,7 @@
             exif[piexif.ExifIFD.DateTimeOriginal] = timeStr;
             exif[piexif.ExifIFD.DateTimeDigitized] = timeStr;
 
-            // জিপিএস ডাটা
+            // জিপিএস ডাটা সেট
             gps[piexif.GPSIFD.GPSLatitudeRef] = userLat < 0 ? 'S' : 'N';
             gps[piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(Math.abs(userLat));
             gps[piexif.GPSIFD.GPSLongitudeRef] = userLng < 0 ? 'W' : 'E';
@@ -215,10 +229,10 @@
 
             let link = document.createElement('a');
             link.href = newImage;
-            link.download = "IMG_" + now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0') + "_" + now.getHours() + now.getMinutes() + now.getSeconds() + ".jpg";
+            link.download = "Proof_" + now.getTime() + ".jpg";
             link.click();
             
-            alert("🎉 জিপিএস ভেরিফাইড প্রুফ তৈরি হয়েছে!");
+            alert("🎉 জিপিএস এবং ডিভাইস ইনফো ভেরিফাইড!");
         }
     </script>
 </body>
