@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>প্রশাসনিক মনিটর</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        /* Neumorphism Base Styles */
+        body {
+            background-color: #e0e5ec;
+            color: #4a4a4a;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+            gap: 15px;
+        }
+
+        /* CCTV ফ্রেম */
+        .cctv-frame {
+            width: 90%;
+            max-width: 600px;
+            height: 65vh;
+            border-radius: 20px;
+            background: #e0e5ec;
+            box-shadow: 7px 7px 15px rgb(163,177,198,0.7), 
+                       -7px -7px 15px rgba(255,255,255, 0.9);
+            padding: 15px;
+            position: relative;
+        }
+
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 15px;
+            background: #333;
+        }
+
+        /* স্ট্যাটাস ডিসপ্লে */
+        .status-display {
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #ffc107;
+        }
+        .live { background-color: #00e676; }
+        .error { background-color: #ff3d00; }
+
+        /* কন্ট্রোল বাটন */
+        .controls {
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Neumorphism বাটন */
+        .btn {
+            padding: 15px 30px;
+            border-radius: 30px;
+            background: #e0e5ec;
+            box-shadow: 6px 6px 12px #a3b1c6, 
+                       -6px -6px 12px #ffffff;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            font-weight: bold;
+            color: #4a4a4a;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn:active {
+            box-shadow: inset 4px 4px 8px #a3b1c6, 
+                        inset -4px -4px 8px #ffffff;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cctv-frame">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="status-display" id="adminStatus">
+            <span class="indicator" id="statusIndicator"></span>
+            সিস্টেম প্রস্তুত হচ্ছে...
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="sendSwitchCommand()">🔄 ক্যামেরা পাল্টান</button>
+    </div>
+
+    <script>
+        const remoteVideo = document.getElementById('remoteVideo');
+        const adminStatus = document.getElementById('adminStatus');
+        const statusIndicator = document.getElementById('statusIndicator');
+
+        // এই ID টা Sender App (ভাঙ্গা ফোন) এ ফিক্সড করে দেওয়া হয়েছে
+        const MY_PEER_ID = 'ADMIN_KAWSAR'; 
+        const ADMIN_PEER_ID = 'ADMIN_KAWSAR'; 
+        let dataConnection = null;
+        let senderPeerId = null;
+
+        // ১. PeerJS সংযোগ শুরু করা
+        const peer = new Peer(MY_PEER_ID, {
+            host: 'peerjs.cloud', 
+            port: 443, 
+            secure: true,
+            config: {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
+        });
+
+        peer.on('open', (id) => {
+            adminStatus.innerHTML = `<span class="indicator" style="background-color:#00e676;"></span> অ্যাডমিন আইডি: <b>${id}</b> <br> সিগন্যালের জন্য প্রস্তুত।`;
+        });
+
+        peer.on('error', (err) => {
+            statusIndicator.classList.add('error');
+            adminStatus.innerHTML = `<span class="indicator error"></span> সংযোগে ত্রুটি! ইন্টারনেট চেক করুন।`;
+        });
+
+        // ২. Sender (CCTV ফোন) কল করলে এই ফাংশনটা চালু হবে
+        peer.on('call', (call) => {
+            senderPeerId = call.peer; // Sender-এর আইডি ধরে রাখলাম
+            
+            // ভিডিও কল রিসিভ করা
+            call.answer(null); 
+
+            // যখন ভিডিও স্ট্রিম আসা শুরু করবে
+            call.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+                remoteVideo.play();
+                
+                statusIndicator.classList.remove('error');
+                statusIndicator.classList.add('live');
+                adminStatus.innerHTML = `<span class="indicator live"></span> লাইভ ফিড চালু: CCTV সংযুক্ত।`;
+                
+                // কল গ্রহণ করার পর ডেটা চ্যানেল ওপেন করা
+                setupDataChannel(senderPeerId);
+            });
+            
+            // স্ট্রিম বন্ধ হলে বা কেটে গেলে
+            call.on('close', () => {
+                statusIndicator.classList.remove('live');
+                statusIndicator.classList.add('error');
+                remoteVideo.srcObject = null;
+                adminStatus.innerHTML = `<span class="indicator error"></span> সিগন্যাল লস্ট! রিকানেক্টের অপেক্ষা...`;
+            });
+        });
+
+        // ৩. ডেটা চ্যানেল সেটআপ করা (কমান্ড পাঠানোর জন্য)
+        function setupDataChannel(senderId) {
+            if (!dataConnection || dataConnection.disconnected) {
+                dataConnection = peer.connect(senderId);
+                
+                dataConnection.on('open', () => {
+                    adminStatus.innerHTML += "<br> 🟢 কমান্ড চ্যানেল তৈরি!";
+                });
+
+                dataConnection.on('error', (err) => {
+                    console.error("Data Channel Error:", err);
+                });
+            }
+        }
+        
+        // ৪. বাটন চাপলে ডেটা চ্যানেলে মেসেজ পাঠানো
+        function sendSwitchCommand() {
+            if (dataConnection && dataConnection.open) {
+                // Sender App-কে কমান্ড পাঠানো
+                dataConnection.send('SWITCH_CAM');
+                adminStatus.innerHTML = `<span class="indicator live"></span> কমান্ড পাঠানো হয়েছে: ক্যামেরা পাল্টানো হচ্ছে...`;
+            } else {
+                alert("কমান্ড চ্যানেল সংযুক্ত নয়। CCTV ফোনটি চালু আছে কিনা নিশ্চিত করুন।");
+                setupDataChannel(senderPeerId); // আবার চেষ্টা করা
+            }
+        }
+
+        // ৫. ইন্টারনেট সংযোগ চেক (ইউজারকে জানানোর জন্য)
+        window.addEventListener('offline', () => {
+            statusIndicator.classList.add('error');
+            adminStatus.innerHTML = `<span class="indicator error"></span> ইন্টারনেট সংযোগ বিচ্ছিন্ন।`;
+        });
+        
+        window.addEventListener('online', () => {
+            adminStatus.innerHTML = `<span class="indicator live"></span> ইন্টারনেট ফিরেছে। সিগন্যালের অপেক্ষা...`;
+        });
+    </script>
+</body>
+</html>
